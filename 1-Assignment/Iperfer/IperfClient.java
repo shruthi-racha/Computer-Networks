@@ -21,7 +21,7 @@ public class IperfClient
 		int portNumber = 7000;
 		int time = 10;
 
-		byte[] onekiloMsg = new byte[1024];
+		byte[] onekiloMsg = new byte[1000];
 
 		OutputStream outToServer;
 
@@ -43,7 +43,7 @@ public class IperfClient
 			while (System.currentTimeMillis() < endTime);
 			outToServer.close();
 			
-			double throughput = (double) numKilosSent / (1024 * (double) time);
+			double throughput = (double) numKilosSent / (1000 * (double) time);
 			System.out.println("sent=" + numKilosSent + " KB rate=" + throughput+" Mbps");
 
 			echoSocket.close();
