@@ -1,0 +1,3 @@
+--- 10.0.0.4 ping statistics ---
+20 packets transmitted, 20 received, 0% packet loss, time 19025ms
+rtt min/avg/max/mdev = 60.137/60.521/63.916/0.917 ms

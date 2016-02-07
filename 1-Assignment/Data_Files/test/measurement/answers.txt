@@ -1,0 +1,109 @@
+Question 1.
+-----------
+Please find answers to this question in attached files
+
+latency L1 - 80.19 ms
+latency L2 - 20.17 ms
+latency L3 - 60.52 ms
+latency L4 - 10.43 ms
+latency L5 - 10.44 ms
+
+Note : Reporting Round Trip Times throughout this text.
+
+Throughput L1 - (21.07 Mbps, 19.16 Mbps)
+Throughput L2 - (40.15 Mbps, 38.60 Mbps)
+Throughput L3 - (30.59 Mbps, 28.86 Mbps)
+Throughput L4 - (25.66 Mbps, 24.21 Mbps)
+Throughput L5 - (25.47 Mbps, 24.03 Mbps)
+
+Note : Reporting as (client side, server side).
+
+
+Comments : 
+While the proportion varied between multiple runs, the sum always remained nearly constant, as expected.
+We expect the bandwidth to be shared when there are multiple connections.
+In Q3, Q4, we were not able to achieve true parallelism, and hence bandwidth at the bottlenecks is not shared 100% fairly.
+We do not expect the latency to be affected, as we expect that statistical multiplexing is used, and the medium is not time shared.
+
+
+Question 2.
+-----------
+
+h1 communicates with h4 through the path h1 - s2 - L1 - L2 - L3- s4 - h4
+
+Expected latency is the sum of latency of individual links, here sum(80.19, 20.17, 60.52, links from switches to host) = 160.88 ms.
+Reason : latency is additive, as data needs to pass through all the links in the path.
+Actual observed RTT = 160.50 ms
+
+
+Expected throughput is the minimum of individual links, i.e., min(throughput of L1, L2, L3) =  (21.07 Mbps, 19.16 Mbps)
+Reason : throughput is capped at the link with the minimum bandwidth, as this acts as the bottleneck.
+Actual observed throughput = (19.23 Mbps, 17.81 Mbps)
+
+The observations seem to match our prediction.
+
+
+Question 3.
+-----------
+
+Two simultaneous connections :-
+h1 - h4
+h8 - h10
+
+Expected latency is the sum of the latencies of the links from h1 to h4 = sum(80.19, 20.17, 60.52) = 160.88
+Expected latency is the sum of the latencies of the links from h8 to h10 = sum(80.19, 20.17, 60.52) = 160.88
+Actual observed RTT (h1,h4) = 160.89
+Actual observed RTT (h8,h10) = 160.91
+
+Expected throughput is the minimum of the bandwidths of the links, but divided by two, since the links will be simultaneously shared (multiplexed) by the two connections.
+Expected throughput (h1,h4) = [(21.07 Mbps, 19.16 Mbps)/2] = (10.53 Mbps, 9.58 Mbps)
+Expected throughput (h8,h10) = [(21.07 Mbps, 19.16 Mbps)/2] = (10.53 Mbps, 9.58 Mbps)
+Actual observed throughput (h1,h4) = (10.55 Mbps, 9.26 Mbps)
+Actual observed throughput (h1,h4) = (10.36 Mbps, 9.25 Mbps)
+
+NOTE : the bandwidths might not be strictly shared, but they do need to add up to the capacity..
+Exact sharing may vary depending upon start time of each communication, and other factors.
+
+
+Three simultaneous connections :-
+h1 - h4 
+h7 - h9
+h8 - h10
+
+Expected latency is the sum of the latencies of the links from h1 to h4 = sum(80.19, 20.17, 60.52) = 160.88
+Expected latency is the sum of the latencies of the links from h8 to h10 = sum(80.19, 20.17, 60.52) = 160.88
+Expected latency is the sum of the latencies of the links from h7 to h9 = sum(80.19, 20.17, 60.52) = 160.88
+Actual latency (h1,h4) = 160.89 ms
+Actual latency (h7,h9) = 160.97 ms
+Actual latency (h8,h10) = 161.01 ms 
+
+Expected throughput (h1,h4) = [(21.07 Mbps, 19.16 Mbps)/3] = (7.02 Mbps, 6.05 Mbps)
+Expected throughput (h7,h9) = [(21.07 Mbps, 19.16 Mbps)/3] = (7.02 Mbps, 6.05 Mbps)
+Expected throughput (h8,h10) = [(21.07 Mbps, 19.16 Mbps)/3] = (7.02 Mbps, 6.05 Mbps)
+
+Actual observed throughput (h1,h4)   = (6.38 Mbps, 5.89 Mbps)
+Actual observed throughput (h7,h9)   = (7.29 Mbps, 6.61 Mbps)
+Actual observed throughput (h8,h10) = (6.83 Mbps, 6.19 Mbps)
+
+
+
+Question 4.
+-----------
+
+Path (h1,h4) : H1 - L1 - L2 - L3 - H4
+Path (h5,h6) : H5 - L4 - L2 - L5 - H6
+
+shared links : L2
+
+Expected latency for (h1,h4) = sum of latencies of links = sum(80.19, 20.17, 60.52) = 160.88 ms
+Expected latency for (h5,h6) = sum of latencies of links = sum(10.43, 20.17, 10.44) = 41.04 ms
+Reason : sharing the link shouldn’t affect latency
+Actual observed RTT (h1,h4) = 160.89 ms
+Actual observed RTT (h5,h6) = 40.75 ms
+
+Expected throughput (h1,h4) = min of available bandwidths at each link = min(L1, (L2/2), L3) = (20.07 Mbps, 19.8 Mbps)
+Expected throughput (h5,h6) = min of available bandwidths at each link = min(L4, (L2/2), L5) = (20.07 Mbps, 19.8 Mbps)
+Reason : shared link is the bottleneck in both the connections.
+NOTE again, bandwidth limit does not have to be exactly L2/2, but the individual capacities should add up to the limit of L2.
+Actual observed throughput (h1,h4) = (19.68 Mbps, 18.45 Mbps) 
+Actual observed throughput (h5,h6) = (22.12 Mbps, 20.74 Mbps)
