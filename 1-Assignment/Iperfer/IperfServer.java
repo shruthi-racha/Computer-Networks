@@ -6,14 +6,78 @@ public class IperfServer
 
 	public static void main(String[] args)
 		{
+		int numberOfArgs = args.length;
+		String hostName = null;
+		int i = 0 , j = 0, time = 0, portNumber = 0;
+		while( i < numberOfArgs)
+			{
+			//System.out.println("outer while");
+				if(args[i].equals("-c"))
+					{
+						//System.out.println("Client mode");
+						//Iperfer in Client mode
+							if(args.length != 7) //Check for number of parameters
+							 {
+							 	System.err.println("Error: missing or additional arguments");
+							 	System.exit(1);
+							 } 
+							
+							 while(j < numberOfArgs)
+								 {
+								 if (args[j].equals("-h"))
+									 {
+									 hostName = args[j+1];
+									 }
+								 else if (args[j].equals("-p"))
+									 {
+									 portNumber = Integer.parseInt(args[j+1]);
+									 if(portNumber < 1024 || portNumber > 65535)
+										 {
+										 	System.err.println("Error: port number must be in the range 1024 to 65535");
+										 	System.exit(1);
+										 }
+									 }
+								 else if (args[j].equals("-t"))
+									 {
+									 time = Integer.parseInt(args[j+1]);
+									 }
+								 j++;
+								 }
+							 break;
+					}
+				
+			if(args[i].equals("-s"))
+				{
+				//Iperfer in Server mode
+					if(args.length != 3) //Check for number of parameters
+					 {
+					 	System.err.println("Error: missing or additional arguments");
+					 	System.exit(1);
+					 }
+					 while(j < numberOfArgs)
+						 {
+						 if (args[j].equals("-p"))
+							 {
+							 portNumber = Integer.parseInt(args[j+1]);
+							 if(portNumber < 1024 || portNumber > 65535)
+								 {
+								 	System.err.println("Error: port number must be in the range 1024 to 65535");
+								 	System.exit(1);
+								 }
+							 }
+						 j++;
+						 }
+					 break;
+				}
+			i++;
+			}
+		if(i == numberOfArgs)
+			{
+			System.err.println("Error: Invalid Mode");
+		 	System.exit(1);
+			}
 
-		// if(args.length != 1)
-		// {
-		// System.err.println("Usage: java EchoServer <port number>");
-		// System.exit(1);
-		// }
-
-		int portNumber = Integer.parseInt("7000");
+		//int portNumber = Integer.parseInt("7000");
 		byte[] oneKilo = new byte[1000];
 
 		InputStream inFromClient;

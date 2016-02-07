@@ -1,0 +1,54 @@
+
+ssh -X mininet@mininet-17.cs.wisc.edu
+seluNb40
+
+clean : sudo mn -c
+
+sudo python assign1_topo.py
+
+nodes
+
+net
+
+From the config file in python
+
+s1,s2 : 20, 40ms
+s2,s3 : 40, 10ms
+s3,s4 : 30, 30ms
+s2,s5 : 25, 5ms
+s3,s6 : 25, 5ms
+
+
+h1 iperf -s -p 7006 &
+h4 iperf -c 10.0.0.1 -p 7006
+
+h7 iperf -s -p 7007 &
+h9 iperf -c 10.0.0.7 -p 7007
+
+h8 iperf -s -p 7008 &
+h10 iperf -c 10.0.0.8 -p 7008
+
+
+sudo mn --test iperf
+
+*** Iperf: testing TCP bandwidth between h1 and h2 
+*** Results: ['6.80 Gbits/sec', '6.82 Gbits/sec']
+
+
+mininet@mininet-vm:~/p1$ sudo python assign1_topo.py 
+*** Creating network
+*** Adding controller
+*** Adding hosts:
+h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 
+*** Adding switches:
+s1 s2 s3 s4 s5 s6 
+*** Adding links:
+(h1, s1) (h2, s2) (h3, s3) (h4, s4) (h5, s5) (h6, s6) (h7, s1) (h8, s1) (h9, s4) (h10, s4) 
+(20.00Mbit 40ms delay) (20.00Mbit 40ms delay) (s1, s2) (40.00Mbit 10ms delay) (40.00Mbit 10ms delay) (s2, s3) (25.00Mbit 5ms delay) (25.00Mbit 5ms delay) (s2, s5) (30.00Mbit 30ms delay) (30.00Mbit 30ms delay) (s3, s4) (25.00Mbit 5ms delay) (25.00Mbit 5ms delay) (s3, s6) 
+*** Configuring hosts
+h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 
+*** Starting controller
+c0 
+*** Starting 6 switches
+s1 s2 s3 s4 s5 s6 ...(20.00Mbit 40ms delay) (20.00Mbit 40ms delay) (40.00Mbit 10ms delay) (25.00Mbit 5ms delay) (40.00Mbit 10ms delay) (30.00Mbit 30ms delay) (25.00Mbit 5ms delay) (30.00Mbit 30ms delay) (25.00Mbit 5ms delay) (25.00Mbit 5ms delay) 
+*** Starting CLI:

@@ -1,0 +1,66 @@
+
+RTT and bandwidth 
+ping 20
+iperfer 20 seconds
+
+L1 - h1->h2
+h1 ping -c 20 10.0.0.2 > latency_L1.txt
+h2 java Iperfer -s -p 7000 >> throughput_L1.txt &
+h1 java Iperfer -c -h 10.0.0.2 -p 7000 -t 50 > throughput_L1.txt
+
+
+L2 - h2->h3
+h2 ping -c 20 10.0.0.3 > latency_L2.txt
+h3 java Iperfer -s -p 7001 >> throughput_L2.txt &
+h2 java Iperfer -c -h 10.0.0.3 -p 7001 -t 50 > throughput_L2.txt
+
+
+L3 - h3->h4
+h3 ping -c 20 10.0.0.3 > latency_L3.txt
+h4 java Iperfer -s -p 7002 >> throughput_L3.txt &
+h3 java Iperfer -c -h 10.0.0.4 -p 7002 -t 50 > throughput_L3.txt
+
+
+L4 - h2->h5
+h2 ping -c 20 10.0.0.5 > latency_L4.txt
+h5 java Iperfer -s -p 7003 >> throughput_L4.txt &
+h2 java Iperfer -c -h 10.0.0.5 -p 7003 -t 50 > throughput_L4.txt
+
+
+L5 - h3->h6
+h3 ping -c 20 10.0.0.5 > latency_L4.txt
+h6 java Iperfer -s -p 7004 >> throughput_L5.txt &
+h3 java Iperfer -c -h 10.0.0.6 -p 7004 -t 50 > throughput_L5.txt
+
+
+Q2.
+h1 to h4
+h4 java Iperfer -s -p 7005 >> throughput_Q2.txt &
+h1 java Iperfer -c -h 10.0.0.4 -p 7005 -t 50 > throughput_Q2.txt
+
+Q3.
+h1 to h4 - 10 to 30
+h7 to h9 - 5 to 25
+h8 to h10 - 0 to 20
+
+h1 java Iperfer -s -p 7006 >> throughput_Q3_1.txt &
+h4 java Iperfer -c -h 10.0.0.1 -p 7006 -t 60 > throughput_Q3_1.txt &
+
+h7 java Iperfer -s -p 7007 >> throughput_Q3_2.txt &
+h9 java Iperfer -c -h 10.0.0.7 -p 7007 -t 59 > throughput_Q3_2.txt &
+
+h8 java Iperfer -s -p 7008 >> throughput_Q3_3.txt &
+h10 java Iperfer -c -h 10.0.0.8 -p 7008 -t 58 > throughput_Q3_3.txt &
+
+
+h1 ping -c 30 10.0.0.4 > latencyQ3-h1_h4.txt &
+h7 ping -c 30 10.0.0.9 > latencyQ3-h7_h9.txt &
+h8 ping -c 30 10.0.0.10 > latencyQ3-h8_h10.txt
+
+Q4.
+
+(h1, h4) : h1 - s1 - l1 - l2 - l3 - s4 - h4
+(h5, h6) : h5 - s5 - l4 - l2 - l5 - s6 - h6
+
+h1 ping -c 30 10.0.0.4 > latency_h1-h4.txt &
+h5 ping -c 30 10.0.0.6 > latency_h5-h6.txt
