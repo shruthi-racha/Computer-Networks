@@ -1,0 +1,4 @@
+Client.. created socket
+Client.. going to send for 20 seconds
+sent=160389 KB rate=25.66224 Mbps
+received=166897 KB rate=24.20966037735849 Mbps
