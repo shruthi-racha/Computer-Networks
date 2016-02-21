@@ -4,7 +4,6 @@ import net.floodlightcontroller.packet.Ethernet;
 import edu.wisc.cs.sdn.vnet.Device;
 import edu.wisc.cs.sdn.vnet.DumpFile;
 import edu.wisc.cs.sdn.vnet.Iface;
-import java.time.LocalTime;
 import java.util.*;
 import net.floodlightcontroller.packet.MACAddress;
 
@@ -15,13 +14,13 @@ import net.floodlightcontroller.packet.MACAddress;
 class SwitchTableEntry
 	{
 	Iface outIface;
-	LocalTime inputTime;
+	Date inputTime;
 	
 	public SwitchTableEntry(Iface iface)
-	{
-	this.outIface = iface;
-	this.inputTime = LocalTime.now();
-	}
+		{
+		this.outIface = iface;
+		this.inputTime = new Date();
+		}
 	
 	}
 
@@ -39,6 +38,7 @@ public class Switch extends Device
 	public Switch(String host, DumpFile logfile)
 		{
 		super(host, logfile);
+		macIfLookup = new HashMap<MACAddress, SwitchTableEntry>();
 		}
 
 	/**
@@ -68,8 +68,8 @@ public class Switch extends Device
 			{
 			SwitchTableEntry outEntry = macIfLookup.get(dest);
 			// handle time 
-			LocalTime currentTime = LocalTime.now();
-			if((currentTime.compareTo(outEntry.inputTime.plusSeconds(15)) > 0))
+			Date currentTime = new Date();
+			if((currentTime.getTime() - outEntry.inputTime.getTime() > 15000))
 				{
 				// invalid entry
 				macIfLookup.remove(dest);
