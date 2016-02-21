@@ -92,7 +92,6 @@ public class Router extends Device
 		/********************************************************************/
 		/* TODO: Handle packets */
 
-		
 		// START CHECKING
 		if(etherPacket.getEtherType() != 0x0800)
 			return;
@@ -102,13 +101,13 @@ public class Router extends Device
 		short recvdChksum = ipPacket.getChecksum();
 		int ipHdrLen = ipPacket.getHeaderLength();
 		ipHdrLen *= 4;
-		
+
 		ipPacket.setChecksum((short) 0);
 		ipPacket.serialize(); // computes chksum
-		
-		if(ipPacket.getChecksum()!=recvdChksum)
+
+		if(ipPacket.getChecksum() != recvdChksum)
 			return;
-		
+
 		byte ttl = ipPacket.getTtl();
 		ttl--;
 		ipPacket.setTtl(ttl);
@@ -116,64 +115,62 @@ public class Router extends Device
 			{
 			return;
 			}
-		
+
 		ipPacket.setChecksum((short) 0);
 		ipPacket.serialize(); // computes chksum
-		
-		for(Iface iface : this.interfaces.values())
+
+		for (Iface iface : this.interfaces.values())
 			{
 			if(ipPacket.getDestinationAddress() == iface.getIpAddress())
 				return;
 			}
 		// END CHECKING
-		
+
 		// START FWDING
-		
+
 		int destIp = ipPacket.getDestinationAddress();
 		RouteEntry fwdEntry = this.routeTable.lookup(destIp);
-		
+
 		System.out.println("Checking fwdentry null..");
-		
-		if(fwdEntry==null)
+
+		if(fwdEntry == null)
 			return;
-		
-		System.out.println("Going to get gateway address..");
-		
-		int gatewayAddr = fwdEntry.getDestinationAddress();
-		
-		System.out.println("Going to lookup gateway address: "+gatewayAddr+" in aRP..");
+
+		System.out.println("Going to get fwdEntry.DestAddr address..");
+
+		int gatewayAddr = fwdEntry.getGatewayAddress();
+
+		System.out.println("ArpCache : Going to lookup fwdEntry.GateAddr address: " + gatewayAddr + " in aRP..");
 		ArpEntry entry = this.arpCache.lookup(gatewayAddr);
-		if(entry==null)
+		if(entry == null)
 			{
-			System.out.println("ArpEntry is null.. going to lookup ipPack.dest addr");
-			entry=this.arpCache.lookup(ipPacket.getDestinationAddress());
-			if(entry==null)
+			System.out.println("ArpEntry is null.. going to lookup ipPack.dest addr: " + destIp);
+			entry = this.arpCache.lookup(destIp);
+			if(entry == null)
 				{
-				System.out.println("ArpEntry is still null");	
+				System.out.println("ArpEntry is still null - ipPack.dest");
 				return;
 				}
 			}
-		System.out.println("going to call entry.getMc() " + entry.getIp());
-		MACAddress gatewayMac =  entry.getMac();
-		
-		System.out.println("Going to set destination mac..");
-		etherPacket.setDestinationMACAddress(gatewayMac.toBytes());
-		
-		System.out.println("Going to set src mac..");
+		System.out.println("going to call entry.getMac() " + entry.getIp());
+		MACAddress nextMac = entry.getMac();
+
+		System.out.println("Going to set destination mac: " + nextMac.toString());
+		etherPacket.setDestinationMACAddress(nextMac.toBytes());
+
+		System.out.println("Going to set src mac: " + fwdEntry.getInterface().getMacAddress().toString());
 		etherPacket.setSourceMACAddress(fwdEntry.getInterface().getMacAddress().toBytes());
-		
+
 		System.out.println("Recompute chksum..");
-		
-		
+
 		ipPacket.setChecksum((short) 0);
 		ipPacket.serialize(); // computes chksum
-		
-		System.out.println("Sending packet..");
-		
-		this.sendPacket(etherPacket, fwdEntry.getInterface());
-		
-		
 
+		System.out.println("Sending packet..");
+
+		this.sendPacket(etherPacket, fwdEntry.getInterface());
+
+		System.out.println("Sent packet..");
 		/********************************************************************/
 		}
 	}

@@ -40,31 +40,19 @@ public class RouteTable
 	 */
 	public RouteEntry lookup(int ip)
 		{
-		/*
-		 * int mask = IPv4.toIPv4Address("255.255.255.255"); int eightMask =
-		 * 0xFF; int octetInts[] = new int[4]; octetInts[0] = octetInts[1] =
-		 * octetInts[2] = octetInts[3] = 255;
-		 */
 
 		synchronized (this.entries)
 			{
 			/*****************************************************************/
 			/* TODO: Find the route entry with the longest prefix match */
-			/*
-			 * RouteEntry entry = null;
-			 * 
-			 * while (entry == null && octetInts[0]>0) { entry = this.find(ip,
-			 * mask);
-			 * 
-			 * if(octetInts[3] > 0) octetInts[3] = (octetInts[3] <<
-			 * 1)&eightMask; else if(octetInts[2] > 0) octetInts[2] =
-			 * (octetInts[2] << 1)&eightMask; if(octetInts[1] > 0) octetInts[1]
-			 * = (octetInts[3] << 1)&eightMask; else if(octetInts[0] > 0)
-			 * octetInts[0] = (octetInts[2] << 1)&eightMask; }
-			 */
 
 			int max_mask = Integer.MIN_VALUE;
 			RouteEntry returnedEntry = null;
+
+			if(debug_on == 1)
+				{
+				System.out.println("ip\tent.DestA\tent.GateA\tent.Mask");
+				}
 
 			synchronized (this.entries)
 				{
@@ -72,7 +60,7 @@ public class RouteTable
 					{
 					if(debug_on == 1)
 						{
-						System.out.println(ip + "\t" + entry.getDestinationAddress() + "\t" + entry.getGatewayAddress() + "\t" + entry.getMaskAddress());
+						System.out.println(ip + "   \t" + entry.getDestinationAddress() + "\t" + entry.getGatewayAddress() + "\t" + entry.getMaskAddress());
 						}
 
 					if((entry.getDestinationAddress() & entry.getMaskAddress()) == (ip & entry.getMaskAddress()))
@@ -85,14 +73,15 @@ public class RouteTable
 							{
 							returnedEntry = entry;
 							max_mask = entry.getMaskAddress();
-							System.out.println("Updating match.. this one is better");
+							System.out.println("Updating match.. this one is better. max_mask: " + max_mask);
 							}
-						
+
 						}
 
 					}
 				}
-			System.out.println("Returning from router lookup Gateway addr: " + returnedEntry.getGatewayAddress());
+			if(returnedEntry != null)
+				System.out.println("Returning from router lookup Gateway addr: " + returnedEntry.getGatewayAddress());
 			return returnedEntry;
 
 			/*****************************************************************/
