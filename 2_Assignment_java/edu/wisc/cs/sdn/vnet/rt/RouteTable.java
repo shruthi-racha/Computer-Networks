@@ -21,6 +21,8 @@ public class RouteTable
 	/** Entries in the route table */
 	private List<RouteEntry> entries;
 
+	int debug_on = 1;
+
 	/**
 	 * Initialize an empty route table.
 	 */
@@ -38,31 +40,60 @@ public class RouteTable
 	 */
 	public RouteEntry lookup(int ip)
 		{
-		int mask = IPv4.toIPv4Address("255.255.255.255");
-		int eightMask = 0xFF;
-		int octetInts[] = new int[4];
-		octetInts[0] = octetInts[1] = octetInts[2] = octetInts[3] = 255;
+		/*
+		 * int mask = IPv4.toIPv4Address("255.255.255.255"); int eightMask =
+		 * 0xFF; int octetInts[] = new int[4]; octetInts[0] = octetInts[1] =
+		 * octetInts[2] = octetInts[3] = 255;
+		 */
 
 		synchronized (this.entries)
 			{
 			/*****************************************************************/
 			/* TODO: Find the route entry with the longest prefix match */
-			RouteEntry entry = null;
-			while (entry == null && octetInts[0]>0)
+			/*
+			 * RouteEntry entry = null;
+			 * 
+			 * while (entry == null && octetInts[0]>0) { entry = this.find(ip,
+			 * mask);
+			 * 
+			 * if(octetInts[3] > 0) octetInts[3] = (octetInts[3] <<
+			 * 1)&eightMask; else if(octetInts[2] > 0) octetInts[2] =
+			 * (octetInts[2] << 1)&eightMask; if(octetInts[1] > 0) octetInts[1]
+			 * = (octetInts[3] << 1)&eightMask; else if(octetInts[0] > 0)
+			 * octetInts[0] = (octetInts[2] << 1)&eightMask; }
+			 */
+
+			int max_mask = Integer.MIN_VALUE;
+			RouteEntry returnedEntry = null;
+
+			synchronized (this.entries)
 				{
-				entry = this.find(ip, mask);
+				for (RouteEntry entry : this.entries)
+					{
+					if(debug_on == 1)
+						{
+						System.out.println(ip + "\t" + entry.getDestinationAddress() + "\t" + entry.getGatewayAddress() + "\t" + entry.getMaskAddress());
+						}
 
-				if(octetInts[3] > 0)
-					octetInts[3] = (octetInts[3] << 1)&eightMask;
-				else if(octetInts[2] > 0)
-					octetInts[2] = (octetInts[2] << 1)&eightMask;
-				if(octetInts[1] > 0)
-					octetInts[1] = (octetInts[3] << 1)&eightMask;
-				else if(octetInts[0] > 0)
-					octetInts[0] = (octetInts[2] << 1)&eightMask;
+					if((entry.getDestinationAddress() & entry.getMaskAddress()) == (ip & entry.getMaskAddress()))
+						{
+						if(debug_on == 1)
+							{
+							System.out.println("Match: " + entry.getDestinationAddress() + "\t" + entry.getMaskAddress());
+							}
+						if(entry.getMaskAddress() > max_mask)
+							{
+							returnedEntry = entry;
+							max_mask = entry.getMaskAddress();
+							System.out.println("Updating match.. this one is better");
+							}
+						
+						}
+
+					}
 				}
-
-			return entry;
+			System.out.println("Returning from router lookup Gateway addr: " + returnedEntry.getGatewayAddress());
+			return returnedEntry;
 
 			/*****************************************************************/
 			}
