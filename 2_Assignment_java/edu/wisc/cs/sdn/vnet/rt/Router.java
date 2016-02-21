@@ -99,14 +99,15 @@ public class Router extends Device
 		IPv4 ipPacket = (IPv4) etherPacket.getPayload();
 
 		short recvdChksum = ipPacket.getChecksum();
-		int ipHdrLen = ipPacket.getHeaderLength();
-		ipHdrLen *= 4;
 
 		ipPacket.setChecksum((short) 0);
 		ipPacket.serialize(); // computes chksum
 
 		if(ipPacket.getChecksum() != recvdChksum)
+			{
+			System.out.println("Invalid chksum");
 			return;
+			}
 
 		byte ttl = ipPacket.getTtl();
 		ttl--;
