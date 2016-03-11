@@ -1,0 +1,66 @@
+
+clean : sudo mn -c
+http://www.webdnstools.com/dnstools/ipcalc
+http://www.techrepublic.com/article/understanding-routing-tables/
+
+Switch Test :
+1. sudo ./run_mininet.py topos/single_sw.topo -a
+2. ./run_pox.sh
+3. java -jar VirtualNetwork.jar -v s1
+    1b. h1 ping -c 2 10.0.1.102
+
+Test:
+single_sw.topo 
+linear5_sw.topo 
+inclass_sw.topo 
+
+
+Router Test:
+
+1. sudo ./run_mininet.py topos/single_rt.topo -a
+2. ./run_pox.sh
+3.  java -jar VirtualNetwork.jar -v r1 -r rtable.r1 -a arp_cache &
+    java -jar VirtualNetwork.jar -v r2 -r rtable.r2 -a arp_cache &
+    java -jar VirtualNetwork.jar -v r3 -r rtable.r3 -a arp_cache
+
+You can use any of the following topologies (in the ~/assign2/topos directory) to test your router:
+single_rt.topo 
+pair_rt.topo
+triangle_rt.topo 
+linear5_rt.topo 
+To test your switch and router implementations together, use any of the following topologies:
+single_each.topo 
+triangle_with_sw.topo 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+ * int mask = IPv4.toIPv4Address("255.255.255.255"); int eightMask =
+ * 0xFF; int octetInts[] = new int[4]; octetInts[0] = octetInts[1] =
+ * octetInts[2] = octetInts[3] = 255;
+ */
+
+/*
+ * RouteEntry entry = null;
+ * 
+ * while (entry == null && octetInts[0]>0) { entry = this.find(ip,
+ * mask);
+ * 
+ * if(octetInts[3] > 0) octetInts[3] = (octetInts[3] <<
+ * 1)&eightMask; else if(octetInts[2] > 0) octetInts[2] =
+ * (octetInts[2] << 1)&eightMask; if(octetInts[1] > 0) octetInts[1]
+ * = (octetInts[3] << 1)&eightMask; else if(octetInts[0] > 0)
+ * octetInts[0] = (octetInts[2] << 1)&eightMask; }
+ */

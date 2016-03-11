@@ -15,13 +15,13 @@ class SwitchTableEntry
 	{
 	Iface outIface;
 	Date inputTime;
-	
+
 	public SwitchTableEntry(Iface iface)
 		{
 		this.outIface = iface;
 		this.inputTime = new Date();
 		}
-	
+
 	}
 
 public class Switch extends Device
@@ -62,12 +62,12 @@ public class Switch extends Device
 			macIfLookup.remove(src);
 			}
 		macIfLookup.put(src, new SwitchTableEntry(inIface));
-		
+
 		// lookup entry for dest mac - check invalid timestamp
 		if(macIfLookup.containsKey(dest))
 			{
 			SwitchTableEntry outEntry = macIfLookup.get(dest);
-			// handle time 
+			// handle time
 			Date currentTime = new Date();
 			if((currentTime.getTime() - outEntry.inputTime.getTime() > 15000))
 				{
@@ -75,24 +75,28 @@ public class Switch extends Device
 				macIfLookup.remove(dest);
 				}
 			}
-		
+
 		// entry + valid ts
 		if(macIfLookup.containsKey(dest))
-				{
-				SwitchTableEntry outEntry = macIfLookup.get(dest);
-				this.sendPacket(etherPacket, outEntry.outIface);
-				}
+			{
+			System.out.println("Found existing entry in switch table");
+			SwitchTableEntry outEntry = macIfLookup.get(dest);
+			this.sendPacket(etherPacket, outEntry.outIface);
+			}
 		// no entry
 		else
 			{
+			System.out.println("No entry found.. going to broadcast");
 			// broadcast?
-			for(Iface iface : this.interfaces.values())
+			for (Iface iface : this.interfaces.values())
 				{
-				this.sendPacket(etherPacket, iface);
+				if(inIface != iface)
+					{
+					this.sendPacket(etherPacket, iface);
+					}
 				}
 			}
-		
-		
+
 		/********************************************************************/
 		/* TODO: Handle packets */
 
