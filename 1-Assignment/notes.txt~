@@ -1,0 +1,9 @@
+[shruthir@king-10] (43)$ iperf -c 128.105.37.229 -p 7001
+------------------------------------------------------------
+Client connecting to 128.105.37.229, TCP port 7001
+TCP window size: 19.3 KByte (default)
+------------------------------------------------------------
+[  3] local 128.105.37.240 port 38201 connected with 128.105.37.229 port 7001
+[ ID] Interval       Transfer     Bandwidth
+[  3]  0.0-10.0 sec  1.10 GBytes   942 Mbits/sec
+
