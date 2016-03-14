@@ -56,6 +56,7 @@ public class Router extends Device
 	// just keep lastUpdatedtimestamp, every second (via thread) / every time we do a lookup, invalidate (ref assign2)
 	// NOTE: dont remove routeEntries provided by initialize.. either that, or call initilalize again everytime we lookup..
 	
+	// UPDATE : look at MACTable.java to see how MAC Table entries are invalidated every second.
 	
 	public void initializeRouteTable()
 		{
