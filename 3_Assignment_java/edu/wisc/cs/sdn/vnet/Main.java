@@ -20,7 +20,7 @@ public class Main
 		short port = DEFAULT_PORT;
 		VNSComm vnsComm = null;
 		Device dev = null;
-		
+		boolean rtProvided = false; 
 		// Parse arguments
 		for(int i = 0; i < args.length; i++)
 		{
@@ -39,7 +39,11 @@ public class Main
 			else if (arg.equals("-l"))
 			{ logfile = args[++i]; }
 			else if (arg.equals("-r"))
-			{ routeTableFile = args[++i]; }
+			{
+			// boolean - true
+			rtProvided = true;
+			routeTableFile = args[++i]; 
+			}
 			else if (arg.equals("-a"))
 			{ arpCacheFile = args[++i]; }
 		}
@@ -67,7 +71,7 @@ public class Main
 		else if (host.startsWith("r"))
 		{
 			// Create router instance
-			dev = new Router(host, dump);
+			dev = new Router(host, dump, rtProvided);
 		}
 		else 
 		{

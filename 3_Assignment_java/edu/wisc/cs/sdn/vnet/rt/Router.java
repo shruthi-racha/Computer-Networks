@@ -27,13 +27,42 @@ public class Router extends Device
 	 * 
 	 * @param host
 	 *            hostname for the router
+	 * @param rtProvided
 	 */
-	public Router(String host, DumpFile logfile)
+	public Router(String host, DumpFile logfile, boolean rtProvided)
 		{
 		super(host, logfile);
 		this.routeTable = new RouteTable();
 		this.arpCache = new ArpCache();
 		arpMsgQueue = new HashMap<Integer, ArrayList<Ethernet>>();
+
+		if(rtProvided == false)
+			{
+			// TODO shruthir : default route initialization
+			initializeRouteTable();
+			// Run RIP
+			}
+
+		}
+
+	// Running RIP :
+	// when init - send RIP request on all ifaces
+	// Thread 1
+	// every 10 seconds - unsolicited RIP response on all interfaces to broadcast address
+	// Thread 2 - CONSIDER
+	// in handlePacket, when we update the route table, consider undoing the change in 30seconds (thread.sleep)
+	// PROBLEM : multiple sources for the same entry - need timestamp anyway
+	// ALTERNATIVE
+	// just keep lastUpdatedtimestamp, every second (via thread) / every time we do a lookup, invalidate (ref assign2)
+	// NOTE: dont remove routeEntries provided by initialize.. either that, or call initilalize again everytime we lookup..
+	
+	
+	public void initializeRouteTable()
+		{
+		// TODO shruthir : for each interface in interfaces add entry to route table
+		// RouteEntry = iface.Ip, iface.netmask, nextHop = 0
+		// read para 2 of starting RIP for impl details
+
 		}
 
 	/**
@@ -222,6 +251,21 @@ public class Router extends Device
 				System.out.println("Invalid chksum.. dropping");
 			return;
 			}
+
+		// TODO : shruthir : RIP Response or Request
+		// if(ipPacket.getProtocol() == IPv4.PROTOCOL_UDP)
+		// {
+		// if(ipPacket.getDestinationAddress() == IPv4.parseOrWhatever("ff:ff:ff:ff:ff:ff"))
+		// {
+		// if RIP Request
+		// update route table?
+		// send Pv2 ripResp;
+		// destination IP address and destination Ethernet address should be
+		// the IP address and MAC address of the router interface that sent the request
+		// else if RIP Response
+		// updateRouteTable appropriately
+		// }
+		// }
 
 		// Check TTL
 		ipPacket.setTtl((byte) (ipPacket.getTtl() - 1));
