@@ -339,9 +339,6 @@ public class Router extends Device
 			return;
 			}
 
-		// Set source MAC address in Ethernet header
-		etherPacket.setSourceMACAddress(outIface.getMacAddress().toBytes());
-
 		// If no gateway, then nextHop is IP destination
 		int nextHop = bestMatch.getGatewayAddress();
 		if(0 == nextHop)
@@ -355,22 +352,23 @@ public class Router extends Device
 			{
 			if(debug_level >= 1)
 				System.out.println("ARPEntry lookup returned null for: " + IPv4.fromIPv4Address(nextHop));
-/*
+
 			// TODO : part3 - send ARP request, retry *3
+
+			final int nextHopFinal = nextHop;
+			final Iface inIfaceFinal = inIface;
+			final IPv4 ipPacketFinal = (IPv4) ipPacket.clone();
+
+			etherPacket.setSourceMACAddress(outIface.getMacAddress().toBytes());
+
 			if(!arpMsgQueue.containsKey(nextHop)) // check if queue exists
 				{
 				arpMsgQueue.put(nextHop, new ArrayList<Ethernet>()); // create new queue
 				}
 			arpMsgQueue.get(nextHop).add(etherPacket); // add to queue
-*/
-			final int nextHopFinal = nextHop;
-			final Iface inIfaceFinal = inIface;
-			final IPv4 ipPacketFinal = ipPacket;
-			final Ethernet etherPacketFinal = etherPacket;
-/*
+
 			Thread thread = new Thread(new Runnable()
 				{
-					boolean notFound = true;
 
 					public void run()
 						{
@@ -383,11 +381,13 @@ public class Router extends Device
 								break;
 							// ELSE arpReply not recvd..
 							System.out.println("Going to send arp request " + i);
-							sendArpRequest(etherPacketFinal, ipPacketFinal, inIfaceFinal, nextHopFinal);
+
+							System.out.println("Going to send arp request ");
+							sendArpRequest(ipPacketFinal, inIfaceFinal, nextHopFinal);
 							System.out.println("Sent request, going to sleep..");
 							try
 								{
-								Thread.sleep(3000); // temp todo change later!
+								Thread.sleep(1000); // temp todo change later!
 								}
 							catch(InterruptedException e)
 								{
@@ -403,20 +403,16 @@ public class Router extends Device
 							{
 							if(!arpMsgQueue.get(nextHopFinal).isEmpty())
 								{
-*/
-								if(debug_level >= 1)
-									System.out.println("ARPRequest failed to get replies..");
+								System.out.println("ARPRequest failed to get replies..");
 								Ethernet icmpEther = new Ethernet();
 								Iface icmpOutIface = createIcmpIpEthernetPacket(icmpEther, ipPacketFinal, inIfaceFinal, (byte) 3, (byte) 1);
-								if(debug_level >= 1 && icmpOutIface != null)
-									System.out.println("*** -> Sending ICMP: " + icmpEther.toString().replace("\n", "\n\t"));
+								System.out.println("*** -> Sending ICMP: " + icmpEther.toString().replace("\n", "\n\t"));
 								if(icmpOutIface != null)
 									sendPacket(icmpEther, icmpOutIface);
 								else
 									{
 									System.out.println("createIcmpIpEthernetPacket returned null instead of iface..");
 									}
-/*
 								arpMsgQueue.get(nextHopFinal).clear(); // drop packets
 								}
 							}
@@ -424,20 +420,21 @@ public class Router extends Device
 				});
 			// start timer-based thread
 			thread.start();
-			// if(reply) {do stuff in handleArpPacket}*/
-
+			// if(reply) {do stuff in handleArpPacket}
+			//
 			return;
 			}
+		// Set source MAC address in Ethernet header
+		etherPacket.setSourceMACAddress(outIface.getMacAddress().toBytes());
 		etherPacket.setDestinationMACAddress(arpEntry.getMac().toBytes());
-
 		this.sendPacket(etherPacket, outIface);
 		}
 
-	private void sendArpRequest(Ethernet etherPacket, IPv4 ipPacket, Iface inIface, int nextHop)
+	private void sendArpRequest(IPv4 ipPacket, Iface inIface, int nextHop)
 		{
 
 		Ethernet ether = new Ethernet();
-		
+
 		ether.setEtherType(Ethernet.TYPE_ARP);
 		ether.setSourceMACAddress(inIface.getMacAddress().toBytes());
 		ether.setDestinationMACAddress(MACAddress.valueOf("ff:ff:ff:ff:ff:ff").toBytes());
@@ -450,15 +447,18 @@ public class Router extends Device
 		arpRequest.setOpCode(ARP.OP_REQUEST);
 		arpRequest.setSenderHardwareAddress(inIface.getMacAddress().toBytes());
 		arpRequest.setSenderProtocolAddress(inIface.getIpAddress());
-		arpRequest.setTargetHardwareAddress(MACAddress.valueOf(0).toBytes());
+		arpRequest.setTargetHardwareAddress(MACAddress.valueOf(0l).toBytes());
 		arpRequest.setTargetProtocolAddress(nextHop);
 
 		ether.setPayload(arpRequest);
 
 		if(debug_level >= 1)
 			System.out.println("*** -> Sending ARP Req packet: " + ether.toString().replace("\n", "\n\t"));
-
-		this.sendPacket(ether, inIface);
+		// TODO shruthir : send out on all interfaces --- check
+		for (Iface iface : this.interfaces.values())
+			{
+			this.sendPacket(ether, iface);
+			}
 
 		}
 
