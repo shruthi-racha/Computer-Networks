@@ -4,22 +4,36 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.floodlightcontroller.packet.IPv4;
 import edu.wisc.cs.sdn.vnet.Iface;
+import edu.wisc.cs.sdn.vnet.sw.MACTableEntry;
 
 /**
  * Route table for a router.
  * 
  * @author Aaron Gember-Jacobson
  */
-public class RouteTable
+public class RouteTable implements Runnable
 	{
 	/** Entries in the route table */
 	private List<RouteEntry> entries;
+
+	/** Timeout (in milliseconds) for entries in the MAC table */
+	public static final int TIMEOUT = 30 * 1000;
+
+	/** Thread for timing out requests and entries in the cache */
+	private Thread timeoutThread;
+
+	private Collection<Iface> ifaces = null;
+
+	boolean isRipOrStatic;
+
+	static int onlyOnce = 0;
 
 	/**
 	 * Initialize an empty route table.
@@ -202,7 +216,8 @@ public class RouteTable
 	 * @param maskIp
 	 *            subnet mask
 	 * @param iface
-	 *            router interface out which to send packets to reach the destination or gateway
+	 *            router interface out which to send packets to reach the
+	 *            destination or gateway
 	 */
 	public void insert(int dstIp, int gwIp, int maskIp, Iface iface)
 		{
@@ -260,6 +275,7 @@ public class RouteTable
 				}
 			entry.setGatewayAddress(gwIp);
 			entry.setInterface(iface);
+			entry.setTimeUpdated(System.currentTimeMillis());
 			}
 		return true;
 		}
@@ -305,4 +321,58 @@ public class RouteTable
 			return result;
 			}
 		}
+
+	public void initializeRouteTable(Collection<Iface> ifaces)
+		{
+		this.ifaces = ifaces;
+		isRipOrStatic = true;
+		if(onlyOnce == 0 && isRipOrStatic == true)
+			{
+			timeoutThread = new Thread(this);
+			timeoutThread.start();
+			onlyOnce = 5;
+			}
+
+		for (Iface iface : this.ifaces)
+			{
+			// RouteEntry initEntry = new RouteEntry(iface.getIpAddress(), 0,
+			// iface.getSubnetMask(), iface);
+			RouteEntry existingEntry = this.lookup(iface.getIpAddress());
+			if(existingEntry == null || existingEntry.getGatewayAddress() != 0)
+				{
+				this.insert(iface.getIpAddress(), 0, iface.getSubnetMask(), iface);
+				}
+
+			}
+		}
+
+	/**
+	 * Every second: timeout Router table entries.
+	 */
+	public void run()
+		{
+		while (true)
+			{
+			// Run every second
+			try
+				{
+				Thread.sleep(1000);
+				}
+			catch(InterruptedException e)
+				{
+				break;
+				}
+
+			// Timeout entries
+			for (RouteEntry entry : this.entries)
+				{
+				if((System.currentTimeMillis() - entry.getTimeUpdated()) > TIMEOUT)
+					{
+					this.entries.remove(entry);
+					}
+				}
+			this.initializeRouteTable(this.ifaces);
+			}
+		}
+
 	}

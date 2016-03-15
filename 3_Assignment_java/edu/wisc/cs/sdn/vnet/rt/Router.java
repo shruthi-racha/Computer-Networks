@@ -60,10 +60,11 @@ public class Router extends Device
 	
 	public void initializeRouteTable()
 		{
-		// TODO shruthir : for each interface in interfaces add entry to route table
+		// TODO - done - shruthir : for each interface in interfaces add entry to route table
 		// RouteEntry = iface.Ip, iface.netmask, nextHop = 0
 		// read para 2 of starting RIP for impl details
-
+		this.routeTable.initializeRouteTable(this.interfaces.values());
+		
 		}
 
 	/**
