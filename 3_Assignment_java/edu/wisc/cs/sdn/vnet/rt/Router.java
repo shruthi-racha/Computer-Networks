@@ -45,7 +45,6 @@ public class Router extends Device
 			// Run RIP
 			runRip();
 			}
-
 		}
 
 	public void runRip()
@@ -56,7 +55,7 @@ public class Router extends Device
 
 		for (Iface iface : this.interfaces.values())
 			{
-			// TODO : shruthir : send RIP request
+			// TODO - done - shruthir : send RIP request
 			sendRipRequest();
 			}
 
@@ -70,8 +69,7 @@ public class Router extends Device
 					{
 					while (true)
 						{
-						// sendRipResponse(false,etherPacket, ipPacket,
-						// udpPacket, ripPacket);
+						sendRipResponse(false, null, null, null, null, null);
 						try
 							{
 							Thread.sleep(UNSOL_PERIOD);
@@ -91,9 +89,7 @@ public class Router extends Device
 
 		for (Iface iface : this.interfaces.values())
 			{
-
 			// Send RIP Request
-
 			RIPv2 ripReq = new RIPv2();
 			UDP udpReq = new UDP();
 			IPv4 ipReq = new IPv4();
@@ -107,13 +103,14 @@ public class Router extends Device
 			ripEntry.setMetric(16);
 			ripReqList.add(ripEntry);
 			ripReq.setEntries(ripReqList);
-			
+			// ripReq.serialize(); ?
+
 			udpReq.setSourcePort(UDP.RIP_PORT);
 			udpReq.setDestinationPort(UDP.RIP_PORT);
 			udpReq.setChecksum((short) 0);
 			udpReq.setPayload(ripReq);
 			udpReq.serialize();
-			
+
 			ipReq.setPayload(udpReq);
 			ipReq.setSourceAddress(iface.getIpAddress());
 			ipReq.setDestinationAddress("224.0.0.9");
@@ -129,34 +126,114 @@ public class Router extends Device
 			etherReq.setPayload(ipReq);
 
 			this.sendPacket(etherReq, iface);
-			
 			}
 
 		}
 
 	// TODO : shruthir : Part4
 
-	public void sendRipResponse(boolean solicited, Ethernet etherPacket, IPv4 ipPacket, UDP udpPacket, RIPv2 ripPacket)
+	public void sendRipResponse(boolean solicited, Ethernet etherPacket, IPv4 ipPacket, UDP udpPacket, RIPv2 ripPacket, Iface inIface)
 		{
 
-		RIPv2 ripResp = new RIPv2();
-		UDP udpResp = (UDP) udpPacket.clone();
-		IPv4 ipResp = (IPv4) ipPacket.clone();
-		Ethernet etherResp = (Ethernet) etherPacket.clone();
-
 		// Solicited Response - reply to our request
-		// destination IP is NOT the multicast IP
+		// destination IP in request is NOT the multicast IP
 		if(solicited == true)
 			{
+			RIPv2 ripResp = new RIPv2();
+			UDP udpResp = new UDP();
+			IPv4 ipResp = new IPv4();
+			Ethernet etherResp = new Ethernet();
+
+			// Set ripResp
+			ripResp.setCommand(RIPv2.COMMAND_RESPONSE);
+			ArrayList<RIPv2Entry> ripRespList = new ArrayList<RIPv2Entry>();
+
+			// TODO : shruthir : part4 : fill in from route table
+			RIPv2Entry ripEntry = new RIPv2Entry();
+			ripEntry.setAddressFamily((short) 0);
+			ripEntry.setMetric(16);
+			ripRespList.add(ripEntry);
+			ripResp.setEntries(ripRespList);
+			// ripResp.serialize(); ?
+
+			// also figure out iface
+
+			// END TODO : shruthir : part4 : fill in from route table
+
+			udpResp.setSourcePort(UDP.RIP_PORT);
+			udpResp.setDestinationPort(UDP.RIP_PORT);
+			udpResp.setChecksum((short) 0);
+			udpResp.setPayload(ripResp);
+			udpResp.serialize();
+
+			ipResp.setPayload(udpResp);
+			// ipResp.setSourceAddress(iface.getIpAddress());
+			ipResp.setDestinationAddress(ipPacket.getSourceAddress());
+			ipResp.setProtocol(IPv4.PROTOCOL_UDP);
+			ipResp.setChecksum((short) 0);
+			ipResp.setTtl((byte) 15);
+			ipResp.serialize();
+			// ipResp set some more
+
+			// etherResp.setSourceMACAddress(iface.getMacAddress().toBytes());
+			etherResp.setDestinationMACAddress(etherPacket.getSourceMACAddress());
+			etherResp.setEtherType(Ethernet.TYPE_IPv4);
+			etherResp.setPayload(ipResp);
+
+			this.sendPacket(etherResp, inIface);
 
 			}
+
 		// Unsolicited Response - 10s update
-		// destination IP is the multicast IP (224.0.0.9)
+		// destination IP in request is the multicast IP (224.0.0.9)
 		else
 			{
+			for (Iface iface : this.interfaces.values())
+				{
+				RIPv2 ripResp = new RIPv2();
 
+				UDP udpResp = new UDP();
+				IPv4 ipResp = new IPv4();
+				Ethernet etherResp = new Ethernet();
+
+				// Set ripResp
+				ripResp.setCommand(RIPv2.COMMAND_RESPONSE);
+				ArrayList<RIPv2Entry> ripRespList = new ArrayList<RIPv2Entry>();
+
+				// TODO : shruthir : part4 : fill in from route table
+				RIPv2Entry ripEntry = new RIPv2Entry();
+				ripEntry.setAddressFamily((short) 0);
+				ripEntry.setMetric(16);
+				ripRespList.add(ripEntry);
+				ripResp.setEntries(ripRespList);
+				// ripResp.serialize(); ?
+
+				// END TODO : shruthir : part4 : fill in from route table
+
+				udpResp.setSourcePort(UDP.RIP_PORT);
+				udpResp.setDestinationPort(UDP.RIP_PORT);
+				udpResp.setChecksum((short) 0);
+				udpResp.setPayload(ripResp);
+				udpResp.serialize();
+
+				ipResp.setPayload(udpResp);
+				ipResp.setSourceAddress(iface.getIpAddress());
+				ipResp.setDestinationAddress(IPv4.toIPv4Address("224.0.0.9"));
+				ipResp.setProtocol(IPv4.PROTOCOL_UDP);
+				ipResp.setChecksum((short) 0);
+				ipResp.setTtl((byte) 15);
+				ipResp.serialize();
+				// ipResp set some more
+
+				etherResp.setSourceMACAddress(iface.getMacAddress().toBytes());
+				etherResp.setDestinationMACAddress(MACAddress.valueOf("ff:ff:ff:ff:ff:ff").toBytes());
+				etherResp.setEtherType(Ethernet.TYPE_IPv4);
+				etherResp.setPayload(ipResp);
+
+				this.sendPacket(etherResp, iface);
+
+				}
 			}
-
 		}
 
 	public void initializeRouteTable()
@@ -367,19 +444,20 @@ public class Router extends Device
 
 				if(ripPacket.getCommand() == RIPv2.COMMAND_RESPONSE)
 					{
-					// TODO
+
 					// Solicited Response - reply to our request
 					// destination IP is NOT the multicast IP
 					if(ipPacket.getDestinationAddress() != IPv4.toIPv4Address("224.0.0.9"))
 						{
 						// TODO
-						// update routetable
+						// update route table. Fwd ?
 						}
 					// Unsolicited Response - 10s update
 					// destination IP is the multicast IP (224.0.0.9)
 					else if(ipPacket.getDestinationAddress() == IPv4.toIPv4Address("224.0.0.9"))
 						{
 						// TODO
+						// update route table. Fwd ?
 						}
 					}
 
@@ -391,16 +469,11 @@ public class Router extends Device
 						// update route table
 						if(etherPacket.getDestinationMAC().isBroadcast())
 							{
-							// send Pv2 ripResp;
+							// TODO : updates if any
+
 							// send solicited response
-							sendRipResponse(true, etherPacket, ipPacket, udpPacket, ripPacket);
+							sendRipResponse(true, etherPacket, ipPacket, udpPacket, ripPacket, inIface);
 							}
-
-						// destination IP address and destination Ethernet
-						// address should be
-						// the IP address and MAC address of the router
-						// interface that sent the request
-
 						}
 
 					}
@@ -555,7 +628,6 @@ public class Router extends Device
 
 			Thread thread = new Thread(new Runnable()
 				{
-
 					public void run()
 						{
 						for (int i = 0;i < 3;i++)
