@@ -18,6 +18,8 @@ public class Router extends Device
 	/** ARP cache for the router */
 	private ArpCache arpCache;
 
+	private long UNSOL_PERIOD = 10000;
+
 	int debug_level = 2;
 
 	HashMap<Integer, ArrayList<Ethernet>> arpMsgQueue;
@@ -41,30 +43,130 @@ public class Router extends Device
 			// TODO shruthir : default route initialization
 			initializeRouteTable();
 			// Run RIP
+			runRip();
 			}
 
 		}
 
-	// Running RIP :
-	// when init - send RIP request on all ifaces
-	// Thread 1
-	// every 10 seconds - unsolicited RIP response on all interfaces to broadcast address
-	// Thread 2 - CONSIDER
-	// in handlePacket, when we update the route table, consider undoing the change in 30seconds (thread.sleep)
-	// PROBLEM : multiple sources for the same entry - need timestamp anyway
-	// ALTERNATIVE
-	// just keep lastUpdatedtimestamp, every second (via thread) / every time we do a lookup, invalidate (ref assign2)
-	// NOTE: dont remove routeEntries provided by initialize.. either that, or call initilalize again everytime we lookup..
-	
-	// UPDATE : look at MACTable.java to see how MAC Table entries are invalidated every second.
-	
+	public void runRip()
+		{
+
+		// Running RIP :
+		// when init - send RIP request on all ifaces
+
+		for (Iface iface : this.interfaces.values())
+			{
+			// TODO : shruthir : send RIP request
+			sendRipRequest();
+			}
+
+		// Thread 1
+		// every 10 seconds - unsolicited RIP response on all interfaces to
+		// broadcast address
+
+		Thread thread = new Thread(new Runnable()
+			{
+				public void run()
+					{
+					while (true)
+						{
+						// sendRipResponse(false,etherPacket, ipPacket,
+						// udpPacket, ripPacket);
+						try
+							{
+							Thread.sleep(UNSOL_PERIOD);
+							}
+						catch(InterruptedException e)
+							{
+							e.printStackTrace();
+							}
+						}
+					}
+			});
+		thread.start();
+		}
+
+	private void sendRipRequest()
+		{
+
+		for (Iface iface : this.interfaces.values())
+			{
+
+			// Send RIP Request
+
+			RIPv2 ripReq = new RIPv2();
+			UDP udpReq = new UDP();
+			IPv4 ipReq = new IPv4();
+			Ethernet etherReq = new Ethernet();
+
+			// Set ripReq
+			ripReq.setCommand(RIPv2.COMMAND_REQUEST);
+			ArrayList<RIPv2Entry> ripReqList = new ArrayList<RIPv2Entry>();
+			RIPv2Entry ripEntry = new RIPv2Entry();
+			ripEntry.setAddressFamily((short) 0);
+			ripEntry.setMetric(16);
+			ripReqList.add(ripEntry);
+			ripReq.setEntries(ripReqList);
+			
+			udpReq.setSourcePort(UDP.RIP_PORT);
+			udpReq.setDestinationPort(UDP.RIP_PORT);
+			udpReq.setChecksum((short) 0);
+			udpReq.setPayload(ripReq);
+			udpReq.serialize();
+			
+			ipReq.setPayload(udpReq);
+			ipReq.setSourceAddress(iface.getIpAddress());
+			ipReq.setDestinationAddress("224.0.0.9");
+			ipReq.setProtocol(IPv4.PROTOCOL_UDP);
+			ipReq.setChecksum((short) 0);
+			ipReq.setTtl((byte) 15);
+			ipReq.serialize();
+			// ipReq set some more
+
+			etherReq.setSourceMACAddress(iface.getMacAddress().toBytes());
+			etherReq.setDestinationMACAddress("ff:ff:ff:ff:ff:ff");
+			etherReq.setEtherType(Ethernet.TYPE_IPv4);
+			etherReq.setPayload(ipReq);
+
+			this.sendPacket(etherReq, iface);
+			
+			}
+
+		}
+
+	// TODO : shruthir : Part4
+
+	public void sendRipResponse(boolean solicited, Ethernet etherPacket, IPv4 ipPacket, UDP udpPacket, RIPv2 ripPacket)
+		{
+
+		RIPv2 ripResp = new RIPv2();
+		UDP udpResp = (UDP) udpPacket.clone();
+		IPv4 ipResp = (IPv4) ipPacket.clone();
+		Ethernet etherResp = (Ethernet) etherPacket.clone();
+
+		// Solicited Response - reply to our request
+		// destination IP is NOT the multicast IP
+		if(solicited == true)
+			{
+
+			}
+		// Unsolicited Response - 10s update
+		// destination IP is the multicast IP (224.0.0.9)
+		else
+			{
+
+			}
+
+		}
+
 	public void initializeRouteTable()
 		{
-		// TODO - done - shruthir : for each interface in interfaces add entry to route table
+		// TODO - done - shruthir : for each interface in interfaces add entry
+		// to route table
 		// RouteEntry = iface.Ip, iface.netmask, nextHop = 0
 		// read para 2 of starting RIP for impl details
 		this.routeTable.initializeRouteTable(this.interfaces.values());
-		
+
 		}
 
 	/**
@@ -255,19 +357,55 @@ public class Router extends Device
 			}
 
 		// TODO : shruthir : RIP Response or Request
-		// if(ipPacket.getProtocol() == IPv4.PROTOCOL_UDP)
-		// {
-		// if(ipPacket.getDestinationAddress() == IPv4.parseOrWhatever("ff:ff:ff:ff:ff:ff"))
-		// {
-		// if RIP Request
-		// update route table?
-		// send Pv2 ripResp;
-		// destination IP address and destination Ethernet address should be
-		// the IP address and MAC address of the router interface that sent the request
-		// else if RIP Response
-		// updateRouteTable appropriately
-		// }
-		// }
+		if(ipPacket.getProtocol() == IPv4.PROTOCOL_UDP)
+			{
+			UDP udpPacket = (UDP) ipPacket.getPayload();
+
+			if(udpPacket.getSourcePort() == UDP.RIP_PORT && udpPacket.getDestinationPort() == UDP.RIP_PORT)
+				{
+				RIPv2 ripPacket = (RIPv2) udpPacket.getPayload();
+
+				if(ripPacket.getCommand() == RIPv2.COMMAND_RESPONSE)
+					{
+					// TODO
+					// Solicited Response - reply to our request
+					// destination IP is NOT the multicast IP
+					if(ipPacket.getDestinationAddress() != IPv4.toIPv4Address("224.0.0.9"))
+						{
+						// TODO
+						// update routetable
+						}
+					// Unsolicited Response - 10s update
+					// destination IP is the multicast IP (224.0.0.9)
+					else if(ipPacket.getDestinationAddress() == IPv4.toIPv4Address("224.0.0.9"))
+						{
+						// TODO
+						}
+					}
+
+				else if(ripPacket.getCommand() == RIPv2.COMMAND_REQUEST)
+					{
+					// Only one kind of request - Specific Request
+					if(ipPacket.getDestinationAddress() == IPv4.toIPv4Address("224.0.0.9"))
+						{
+						// update route table
+						if(etherPacket.getDestinationMAC().isBroadcast())
+							{
+							// send Pv2 ripResp;
+							// send solicited response
+							sendRipResponse(true, etherPacket, ipPacket, udpPacket, ripPacket);
+							}
+
+						// destination IP address and destination Ethernet
+						// address should be
+						// the IP address and MAC address of the router
+						// interface that sent the request
+
+						}
+
+					}
+				}
+			}
 
 		// Check TTL
 		ipPacket.setTtl((byte) (ipPacket.getTtl() - 1));
@@ -409,7 +547,9 @@ public class Router extends Device
 
 			if(!arpMsgQueue.containsKey(nextHop)) // check if queue exists
 				{
-				arpMsgQueue.put(nextHop, new ArrayList<Ethernet>()); // create new queue
+				arpMsgQueue.put(nextHop, new ArrayList<Ethernet>()); // create
+																		// new
+																		// queue
 				}
 			arpMsgQueue.get(nextHop).add(etherPacket); // add to queue
 
@@ -445,7 +585,8 @@ public class Router extends Device
 						// {if no reply, DEST_HOST_UNREACHABLE}
 						// TODO : done : adbhat : ICMP_DEST_HOST_UNREACHABLE
 
-						if(arpMsgQueue.containsKey(nextHopFinal)) // check no reply
+						if(arpMsgQueue.containsKey(nextHopFinal)) // check no
+																	// reply
 							{
 							if(!arpMsgQueue.get(nextHopFinal).isEmpty())
 								{
@@ -459,7 +600,8 @@ public class Router extends Device
 									{
 									System.out.println("createIcmpIpEthernetPacket returned null instead of iface..");
 									}
-								arpMsgQueue.get(nextHopFinal).clear(); // drop packets
+								arpMsgQueue.get(nextHopFinal).clear(); // drop
+																		// packets
 								}
 							}
 						}
@@ -553,7 +695,8 @@ public class Router extends Device
 			{
 			if(debug_level >= 1)
 				System.out.println("ARPEntry lookup returned null for " + IPv4.fromIPv4Address(nextHop));
-			System.out.println("Dropping"); // TODO : adbhat : ICMP_DEST_HOST_UNREACHABLE
+			System.out.println("Dropping"); // TODO : adbhat :
+											// ICMP_DEST_HOST_UNREACHABLE
 
 			return null;
 			}
@@ -651,7 +794,8 @@ public class Router extends Device
 			if(debug_level >= 1)
 				System.out.println("ARPEntry lookup returned null for " + IPv4.fromIPv4Address(nextHop));
 			System.out.println("Dropping");
-			// TODO : adbhat : ICMP_DEST_HOST_UNREACHABLE - dont do.. icmp packet wont call itself
+			// TODO : adbhat : ICMP_DEST_HOST_UNREACHABLE - dont do.. icmp
+			// packet wont call itself
 
 			return null;
 			}
@@ -688,7 +832,6 @@ public class Router extends Device
 		ip.setSourceAddress(outIface.getIpAddress());
 		ip.setDestinationAddress(ipPacket.getSourceAddress());
 		ip.setPayload(icmp);
-
 		ip.setChecksum((short) 0);
 		// ip.serialize();
 
