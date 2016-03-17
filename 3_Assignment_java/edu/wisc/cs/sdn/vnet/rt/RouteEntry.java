@@ -27,6 +27,8 @@ public class RouteEntry
 
 	/** Time (in milliseconds since the epoch) the entry was updated */
 	private long timeUpdated;
+	
+	private int metric;
 
 	/**
 	 * Create a new route table entry.
@@ -47,6 +49,17 @@ public class RouteEntry
 		this.gatewayAddress = gatewayAddress;
 		this.maskAddress = maskAddress;
 		this.iface = iface;
+		this.metric = 1;
+		this.timeUpdated = System.currentTimeMillis();
+		}
+	
+	public RouteEntry(int destinationAddress, int gatewayAddress, int maskAddress, Iface iface, int metric)
+		{
+		this.destinationAddress = destinationAddress;
+		this.gatewayAddress = gatewayAddress;
+		this.maskAddress = maskAddress;
+		this.iface = iface;
+		this.metric = metric;
 		this.timeUpdated = System.currentTimeMillis();
 		}
 
@@ -83,6 +96,16 @@ public class RouteEntry
 		{
 		return this.timeUpdated ; 
 		}
+	
+	public int getMetric()
+	{
+		return this.metric;
+	}
+	
+	public void setMetric(int metric)
+	{
+		this.metric = metric;
+	}
 	
 	/**
 	 * @return the router interface out which packets should be sent to reach

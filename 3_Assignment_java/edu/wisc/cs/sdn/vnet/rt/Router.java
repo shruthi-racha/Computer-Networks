@@ -40,24 +40,25 @@ public class Router extends Device
 
 		if(rtProvided == false)
 			{
-			// TODO shruthir : default route initialization
-			initializeRouteTable();
-			// Run RIP
-			runRip();
+			System.out.println("Router table not provided");
+			}
+		else
+			{
+			System.out.println("Route table provided");
 			}
 		}
 
 	public void runRip()
 		{
+		// TODO shruthir : default route initialization
+		initializeRouteTable();
+		// Run RIP
 
 		// Running RIP :
 		// when init - send RIP request on all ifaces
 
-		for (Iface iface : this.interfaces.values())
-			{
-			// TODO - done - shruthir : send RIP request
-			sendRipRequest();
-			}
+		// TODO - done - shruthir : send RIP request
+		sendRipRequest();
 
 		// Thread 1
 		// every 10 seconds - unsolicited RIP response on all interfaces to
@@ -86,9 +87,10 @@ public class Router extends Device
 
 	private void sendRipRequest()
 		{
-
+		System.out.println("Going to send RIP request on all interfaces..");
 		for (Iface iface : this.interfaces.values())
 			{
+			System.out.println("Going to send RIP request on interface.." + iface.getIpAddress());
 			// Send RIP Request
 			RIPv2 ripReq = new RIPv2();
 			UDP udpReq = new UDP();
@@ -116,7 +118,7 @@ public class Router extends Device
 			ipReq.setDestinationAddress("224.0.0.9");
 			ipReq.setProtocol(IPv4.PROTOCOL_UDP);
 			ipReq.setChecksum((short) 0);
-			ipReq.setTtl((byte) 15);
+			ipReq.setTtl((byte) 64);
 			ipReq.serialize();
 			// ipReq set some more
 
@@ -125,6 +127,8 @@ public class Router extends Device
 			etherReq.setEtherType(Ethernet.TYPE_IPv4);
 			etherReq.setPayload(ipReq);
 
+			if(debug_level >= 1)
+				System.out.println("*** -> Sending RIP Req packet: " + etherReq.toString().replace("\n", "\n\t"));
 			this.sendPacket(etherReq, iface);
 			}
 
@@ -146,17 +150,14 @@ public class Router extends Device
 
 			// Set ripResp
 			ripResp.setCommand(RIPv2.COMMAND_RESPONSE);
-			ArrayList<RIPv2Entry> ripRespList = new ArrayList<RIPv2Entry>();
+			List<RIPv2Entry> ripRespList = this.routeTable.getRIPEntries();
 
 			// TODO : shruthir : part4 : fill in from route table
-			RIPv2Entry ripEntry = new RIPv2Entry();
-			ripEntry.setAddressFamily((short) 0);
-			ripEntry.setMetric(16);
-			ripRespList.add(ripEntry);
+
 			ripResp.setEntries(ripRespList);
 			// ripResp.serialize(); ?
 
-			// also figure out iface
+			// also figure out iface check shruthi
 
 			// END TODO : shruthir : part4 : fill in from route table
 
@@ -167,7 +168,7 @@ public class Router extends Device
 			udpResp.serialize();
 
 			ipResp.setPayload(udpResp);
-			// ipResp.setSourceAddress(iface.getIpAddress());
+			ipResp.setSourceAddress(inIface.getIpAddress());
 			ipResp.setDestinationAddress(ipPacket.getSourceAddress());
 			ipResp.setProtocol(IPv4.PROTOCOL_UDP);
 			ipResp.setChecksum((short) 0);
@@ -175,11 +176,13 @@ public class Router extends Device
 			ipResp.serialize();
 			// ipResp set some more
 
-			// etherResp.setSourceMACAddress(iface.getMacAddress().toBytes());
+			etherResp.setSourceMACAddress(inIface.getMacAddress().toBytes());
 			etherResp.setDestinationMACAddress(etherPacket.getSourceMACAddress());
 			etherResp.setEtherType(Ethernet.TYPE_IPv4);
 			etherResp.setPayload(ipResp);
 
+			if(debug_level >= 1)
+				System.out.println("*** -> Sending RIP Resp packet: " + etherResp.toString().replace("\n", "\n\t"));
 			this.sendPacket(etherResp, inIface);
 
 			}
@@ -198,13 +201,10 @@ public class Router extends Device
 
 				// Set ripResp
 				ripResp.setCommand(RIPv2.COMMAND_RESPONSE);
-				ArrayList<RIPv2Entry> ripRespList = new ArrayList<RIPv2Entry>();
+				List<RIPv2Entry> ripRespList = this.routeTable.getRIPEntries();
 
 				// TODO : shruthir : part4 : fill in from route table
-				RIPv2Entry ripEntry = new RIPv2Entry();
-				ripEntry.setAddressFamily((short) 0);
-				ripEntry.setMetric(16);
-				ripRespList.add(ripEntry);
+
 				ripResp.setEntries(ripRespList);
 				// ripResp.serialize(); ?
 
@@ -221,7 +221,7 @@ public class Router extends Device
 				ipResp.setDestinationAddress(IPv4.toIPv4Address("224.0.0.9"));
 				ipResp.setProtocol(IPv4.PROTOCOL_UDP);
 				ipResp.setChecksum((short) 0);
-				ipResp.setTtl((byte) 15);
+				// ipResp.setTtl((byte) 15);
 				ipResp.serialize();
 				// ipResp set some more
 
@@ -230,6 +230,8 @@ public class Router extends Device
 				etherResp.setEtherType(Ethernet.TYPE_IPv4);
 				etherResp.setPayload(ipResp);
 
+				if(debug_level >= 1)
+					System.out.println("*** -> Sending RIP Resp broadcast packet: " + etherResp.toString().replace("\n", "\n\t"));
 				this.sendPacket(etherResp, iface);
 
 				}
@@ -444,9 +446,64 @@ public class Router extends Device
 
 				if(ripPacket.getCommand() == RIPv2.COMMAND_RESPONSE)
 					{
+					RouteEntry nextHopEntry = this.routeTable.lookup(ipPacket.getSourceAddress());
+					if(nextHopEntry != null && (nextHopEntry.getGatewayAddress() == 0))
+						{
+						for (Iface iface : this.getInterfaces().values())
+							{
+							if(iface.getIpAddress() == ipPacket.getSourceAddress()) // routers own interface
+								{
+								return;
+								}
+							}
+						List<RIPv2Entry> ripEntries = ripPacket.getEntries();
 
+						for (RIPv2Entry entry : ripEntries)
+							{
+							String ipString = IPv4.fromIPv4Address((entry.getAddress() & entry.getSubnetMask()));
+							if(ipString.startsWith("127") || ipString.startsWith("0.")) // check
+								{
+								continue;
+								}
+							if(entry.getMetric() < 1 || entry.getMetric() > 16)
+								{
+								continue;
+								}
+
+							RouteEntry routeTableEntry = this.routeTable.lookup(entry.getAddress());
+							if(routeTableEntry == null) // entry not in table
+								{
+								// add entry
+								/* routeTableEntry = new RouteEntry */
+								this.routeTable.insert(entry.getAddress(), ipPacket.getSourceAddress(), entry.getSubnetMask(), inIface, (entry.getMetric() + 1));
+								}
+							else
+								// entry in table check to update or no
+								{
+								if(entry.getMetric() + 1 < routeTableEntry.getMetric())
+									{
+									// update
+									this.routeTable.update(entry.getAddress(), entry.getSubnetMask(), ipPacket.getSourceAddress(), inIface, (entry.getMetric() + 1));
+									}
+								else if(routeTableEntry.getGatewayAddress() == ipPacket.getSourceAddress())
+									{
+									// update
+									this.routeTable.update(entry.getAddress(), entry.getSubnetMask(), ipPacket.getSourceAddress(), inIface, (entry.getMetric() + 1));
+									if(entry.getMetric() + 1 >= 16)
+										{
+										this.routeTable.remove(entry.getAddress(), entry.getSubnetMask());
+										}
+									}
+								else
+									{
+									continue;
+									}
+								}
+							}
+						}
 					// Solicited Response - reply to our request
 					// destination IP is NOT the multicast IP
+
 					if(ipPacket.getDestinationAddress() != IPv4.toIPv4Address("224.0.0.9"))
 						{
 						// TODO
@@ -469,14 +526,14 @@ public class Router extends Device
 						// update route table
 						if(etherPacket.getDestinationMAC().isBroadcast())
 							{
-							// TODO : updates if any
+							// TODO : updates if any - DO NOT UPDATE RouteTable
 
 							// send solicited response
 							sendRipResponse(true, etherPacket, ipPacket, udpPacket, ripPacket, inIface);
 							}
 						}
-
 					}
+				return;
 				}
 			}
 

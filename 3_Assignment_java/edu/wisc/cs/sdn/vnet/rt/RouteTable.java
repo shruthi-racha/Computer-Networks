@@ -4,12 +4,14 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.floodlightcontroller.packet.IPv4;
+import net.floodlightcontroller.packet.RIPv2Entry;
 import edu.wisc.cs.sdn.vnet.Iface;
 import edu.wisc.cs.sdn.vnet.sw.MACTableEntry;
 
@@ -75,6 +77,26 @@ public class RouteTable implements Runnable
 
 			/*****************************************************************/
 			}
+		}
+
+	public List<RIPv2Entry> getRIPEntries()
+		{
+		ArrayList<RIPv2Entry> entryList = new ArrayList<RIPv2Entry>();
+		synchronized (this.entries)
+			{
+			for (RouteEntry entry : this.entries)
+				{
+				RIPv2Entry ripEntry = new RIPv2Entry();
+				ripEntry.setAddress(entry.getDestinationAddress());
+				ripEntry.setAddressFamily(RIPv2Entry.ADDRESS_FAMILY_IPv4);
+				ripEntry.setMetric(entry.getMetric());
+				ripEntry.setNextHopAddress(entry.getGatewayAddress());
+				// ripEntry.setRouteTag(RIPv2Entry.);
+				ripEntry.setSubnetMask(entry.getMaskAddress());
+				entryList.add(ripEntry);
+				}
+			}
+		return entryList;
 		}
 
 	/**
@@ -216,12 +238,20 @@ public class RouteTable implements Runnable
 	 * @param maskIp
 	 *            subnet mask
 	 * @param iface
-	 *            router interface out which to send packets to reach the
-	 *            destination or gateway
+	 *            router interface out which to send packets to reach the destination or gateway
 	 */
 	public void insert(int dstIp, int gwIp, int maskIp, Iface iface)
 		{
 		RouteEntry entry = new RouteEntry(dstIp, gwIp, maskIp, iface);
+		synchronized (this.entries)
+			{
+			this.entries.add(entry);
+			}
+		}
+
+	public void insert(int dstIp, int gwIp, int maskIp, Iface iface, int metric)
+		{
+		RouteEntry entry = new RouteEntry(dstIp, gwIp, maskIp, iface, metric);
 		synchronized (this.entries)
 			{
 			this.entries.add(entry);
@@ -275,6 +305,23 @@ public class RouteTable implements Runnable
 				}
 			entry.setGatewayAddress(gwIp);
 			entry.setInterface(iface);
+			entry.setTimeUpdated(System.currentTimeMillis());
+			}
+		return true;
+		}
+
+	public boolean update(int dstIp, int maskIp, int gwIp, Iface iface, int metric)
+		{
+		synchronized (this.entries)
+			{
+			RouteEntry entry = this.find(dstIp, maskIp);
+			if(null == entry)
+				{
+				return false;
+				}
+			entry.setGatewayAddress(gwIp);
+			entry.setInterface(iface);
+			entry.setMetric(metric);
 			entry.setTimeUpdated(System.currentTimeMillis());
 			}
 		return true;
@@ -364,14 +411,17 @@ public class RouteTable implements Runnable
 				}
 
 			// Timeout entries
-			for (RouteEntry entry : this.entries)
+			synchronized (this.entries)
 				{
-				if((System.currentTimeMillis() - entry.getTimeUpdated()) > TIMEOUT)
+				for (RouteEntry entry : this.entries)
 					{
-					this.entries.remove(entry);
+					if((System.currentTimeMillis() - entry.getTimeUpdated()) > TIMEOUT && entry.getGatewayAddress() != 0)
+						{
+						this.entries.remove(entry);
+						}
 					}
 				}
-			this.initializeRouteTable(this.ifaces);
+			// this.initializeRouteTable(this.ifaces);
 			}
 		}
 
