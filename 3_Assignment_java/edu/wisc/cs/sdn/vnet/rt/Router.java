@@ -2,6 +2,7 @@ package edu.wisc.cs.sdn.vnet.rt;
 
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import edu.wisc.cs.sdn.vnet.Device;
 import edu.wisc.cs.sdn.vnet.DumpFile;
 import edu.wisc.cs.sdn.vnet.Iface;
@@ -22,7 +23,7 @@ public class Router extends Device
 
 	int debug_level = 2;
 
-	HashMap<Integer, ArrayList<Ethernet>> arpMsgQueue;
+	ConcurrentHashMap<Integer, ArrayList<Ethernet>> arpMsgQueue;
 
 	/**
 	 * Creates a router for a specific host.
@@ -36,7 +37,7 @@ public class Router extends Device
 		super(host, logfile);
 		this.routeTable = new RouteTable();
 		this.arpCache = new ArpCache();
-		arpMsgQueue = new HashMap<Integer, ArrayList<Ethernet>>();
+		arpMsgQueue = new ConcurrentHashMap<Integer, ArrayList<Ethernet>>();
 
 		if(rtProvided == false)
 			{
@@ -63,7 +64,6 @@ public class Router extends Device
 		// Thread 1
 		// every 10 seconds - unsolicited RIP response on all interfaces to
 		// broadcast address
-
 		Thread thread = new Thread(new Runnable()
 			{
 				public void run()
@@ -92,44 +92,52 @@ public class Router extends Device
 			{
 			System.out.println("Going to send RIP request on interface.." + iface.getIpAddress());
 			// Send RIP Request
-			RIPv2 ripReq = new RIPv2();
-			UDP udpReq = new UDP();
-			IPv4 ipReq = new IPv4();
-			Ethernet etherReq = new Ethernet();
+			try
+				{
+				RIPv2 ripReq = new RIPv2();
+				UDP udpReq = new UDP();
+				IPv4 ipReq = new IPv4();
+				Ethernet etherReq = new Ethernet();
 
-			// Set ripReq
-			ripReq.setCommand(RIPv2.COMMAND_REQUEST);
-			ArrayList<RIPv2Entry> ripReqList = new ArrayList<RIPv2Entry>();
-			RIPv2Entry ripEntry = new RIPv2Entry();
-			ripEntry.setAddressFamily((short) 0);
-			ripEntry.setMetric(16);
-			ripReqList.add(ripEntry);
-			ripReq.setEntries(ripReqList);
-			// ripReq.serialize(); ?
+				// Set ripReq
+				ripReq.setCommand(RIPv2.COMMAND_REQUEST);
+				ArrayList<RIPv2Entry> ripReqList = new ArrayList<RIPv2Entry>();
+				RIPv2Entry ripEntry = new RIPv2Entry();
+				ripEntry.setAddressFamily((short) 0);
+				ripEntry.setMetric(16);
+				ripReqList.add(ripEntry);
+				ripReq.setEntries(ripReqList);
+				// ripReq.serialize(); ?
 
-			udpReq.setSourcePort(UDP.RIP_PORT);
-			udpReq.setDestinationPort(UDP.RIP_PORT);
-			udpReq.setChecksum((short) 0);
-			udpReq.setPayload(ripReq);
-			udpReq.serialize();
+				udpReq.setSourcePort(UDP.RIP_PORT);
+				udpReq.setDestinationPort(UDP.RIP_PORT);
+				udpReq.setChecksum((short) 0);
+				udpReq.setPayload(ripReq);
+				udpReq.serialize();
 
-			ipReq.setPayload(udpReq);
-			ipReq.setSourceAddress(iface.getIpAddress());
-			ipReq.setDestinationAddress("224.0.0.9");
-			ipReq.setProtocol(IPv4.PROTOCOL_UDP);
-			ipReq.setChecksum((short) 0);
-			ipReq.setTtl((byte) 64);
-			ipReq.serialize();
-			// ipReq set some more
+				ipReq.setPayload(udpReq);
+				ipReq.setSourceAddress(iface.getIpAddress());
+				ipReq.setDestinationAddress("224.0.0.9");
+				ipReq.setProtocol(IPv4.PROTOCOL_UDP);
+				ipReq.setChecksum((short) 0);
+				ipReq.setTtl((byte) 64);
+				ipReq.serialize();
+				// ipReq set some more
 
-			etherReq.setSourceMACAddress(iface.getMacAddress().toBytes());
-			etherReq.setDestinationMACAddress("ff:ff:ff:ff:ff:ff");
-			etherReq.setEtherType(Ethernet.TYPE_IPv4);
-			etherReq.setPayload(ipReq);
+				etherReq.setSourceMACAddress(iface.getMacAddress().toBytes());
+				etherReq.setDestinationMACAddress("ff:ff:ff:ff:ff:ff");
+				etherReq.setEtherType(Ethernet.TYPE_IPv4);
+				etherReq.setPayload(ipReq);
 
-			if(debug_level >= 1)
-				System.out.println("*** -> Sending RIP Req packet: " + etherReq.toString().replace("\n", "\n\t"));
-			this.sendPacket(etherReq, iface);
+				if(debug_level >= 1)
+					System.out.println("*** -> Sending RIP Req packet: " + etherReq.toString().replace("\n", "\n\t"));
+				this.sendPacket(etherReq, iface);
+				}
+			catch(Exception e)
+				{
+				System.out.println("Handled Exception in sendRipRequest ");
+				e.printStackTrace();
+				}
 			}
 
 		}
@@ -143,6 +151,10 @@ public class Router extends Device
 		// destination IP in request is NOT the multicast IP
 		if(solicited == true)
 			{
+			System.out.println("Going to send solicited response");
+			System.out.println("Router table:");
+			System.out.println(this.routeTable.toString());
+
 			RIPv2 ripResp = new RIPv2();
 			UDP udpResp = new UDP();
 			IPv4 ipResp = new IPv4();
@@ -191,6 +203,9 @@ public class Router extends Device
 		// destination IP in request is the multicast IP (224.0.0.9)
 		else
 			{
+			System.out.println("Going to send unsol response");
+			System.out.println("Router table:");
+			System.out.println(this.routeTable.toString());
 			for (Iface iface : this.interfaces.values())
 				{
 				RIPv2 ripResp = new RIPv2();
@@ -231,7 +246,8 @@ public class Router extends Device
 				etherResp.setPayload(ipResp);
 
 				if(debug_level >= 1)
-					System.out.println("*** -> Sending RIP Resp broadcast packet: " + etherResp.toString().replace("\n", "\n\t"));
+					System.out.println("*** -> Sending RIP Resp broadcast packet: ");
+				// System.out.println(etherResp.toString().replace("\n", "\n\t"));
 				this.sendPacket(etherResp, iface);
 
 				}

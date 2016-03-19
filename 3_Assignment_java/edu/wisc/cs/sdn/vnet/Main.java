@@ -119,6 +119,7 @@ public class Main
 		System.out.println("<-- Ready to process packets -->");
 		if(dev instanceof Router)
 			{
+			if(routeTableFile == null)
 			((Router) dev).runRip();
 			}
 		while (vnsComm.readFromServer());

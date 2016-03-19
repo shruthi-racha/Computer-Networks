@@ -94,6 +94,7 @@ public class RouteTable implements Runnable
 				// ripEntry.setRouteTag(RIPv2Entry.);
 				ripEntry.setSubnetMask(entry.getMaskAddress());
 				entryList.add(ripEntry);
+				//System.out.println(ripEntry); // PRints out the entries!!
 				}
 			}
 		return entryList;
@@ -360,7 +361,7 @@ public class RouteTable implements Runnable
 				return " WARNING: route table empty";
 				}
 
-			String result = "Destination\tGateway\t\tMask\t\tIface\n";
+			String result = "Destination\tGateway\t\tMask\t\tIface\tMetric\n";
 			for (RouteEntry entry : entries)
 				{
 				result += entry.toString() + "\n";
