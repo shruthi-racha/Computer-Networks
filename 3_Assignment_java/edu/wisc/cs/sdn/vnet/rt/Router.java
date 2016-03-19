@@ -481,7 +481,7 @@ public class Router extends Device
 								{
 								continue;
 								}
-							if(entry.getMetric() < 1 || entry.getMetric() > 16)
+							if(entry.getMetric() < 1 || entry.getMetric() >= 16)
 								{
 								continue;
 								}
@@ -496,16 +496,24 @@ public class Router extends Device
 							else
 								// entry in table check to update or no
 								{
-								if(entry.getMetric() + 1 < routeTableEntry.getMetric())
+								if((entry.getMetric() + 1) < routeTableEntry.getMetric())
 									{
 									// update
+									System.out.println(IPv4.fromIPv4Address(entry.getAddress()) + "\t" + entry.getSubnetMask() + "\t"
+											+ IPv4.fromIPv4Address(ipPacket.getSourceAddress()) + "\t" + IPv4.fromIPv4Address(inIface.getIpAddress()) + "\t"
+											+ (entry.getMetric() + 1) + "\t" + "Updating with lesser metric");
+
 									this.routeTable.update(entry.getAddress(), entry.getSubnetMask(), ipPacket.getSourceAddress(), inIface, (entry.getMetric() + 1));
 									}
 								else if(routeTableEntry.getGatewayAddress() == ipPacket.getSourceAddress())
 									{
 									// update
+									System.out.println(IPv4.fromIPv4Address(entry.getAddress()) + "\t" + entry.getSubnetMask() + "\t"
+											+ IPv4.fromIPv4Address(ipPacket.getSourceAddress()) + "\t" + IPv4.fromIPv4Address(inIface.getIpAddress()) + "\t"
+											+ (entry.getMetric() + 1) + "\t" + "Updating with same nextHop");
+
 									this.routeTable.update(entry.getAddress(), entry.getSubnetMask(), ipPacket.getSourceAddress(), inIface, (entry.getMetric() + 1));
-									if(entry.getMetric() + 1 >= 16)
+									if((entry.getMetric() + 1) >= 16)
 										{
 										this.routeTable.remove(entry.getAddress(), entry.getSubnetMask());
 										}

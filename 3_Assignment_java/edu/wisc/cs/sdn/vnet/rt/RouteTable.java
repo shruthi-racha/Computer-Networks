@@ -26,7 +26,7 @@ public class RouteTable implements Runnable
 	private List<RouteEntry> entries;
 
 	/** Timeout (in milliseconds) for entries in the MAC table */
-	public static final int TIMEOUT = 30 * 1000;
+	public static final int TIMEOUT = 30000;
 
 	/** Thread for timing out requests and entries in the cache */
 	private Thread timeoutThread;
@@ -94,7 +94,7 @@ public class RouteTable implements Runnable
 				// ripEntry.setRouteTag(RIPv2Entry.);
 				ripEntry.setSubnetMask(entry.getMaskAddress());
 				entryList.add(ripEntry);
-				//System.out.println(ripEntry); // PRints out the entries!!
+				// System.out.println(ripEntry); // PRints out the entries!!
 				}
 			}
 		return entryList;
@@ -361,7 +361,7 @@ public class RouteTable implements Runnable
 				return " WARNING: route table empty";
 				}
 
-			String result = "Destination\tGateway\t\tMask\t\tIface\tMetric\n";
+			String result = "Destination\tGateway\t\tMask\t\tIface\tMetric\tTimeUpdated\n";
 			for (RouteEntry entry : entries)
 				{
 				result += entry.toString() + "\n";
@@ -405,23 +405,24 @@ public class RouteTable implements Runnable
 			try
 				{
 				Thread.sleep(1000);
-				}
-			catch(InterruptedException e)
-				{
-				break;
-				}
-
-			// Timeout entries
-			synchronized (this.entries)
-				{
-				for (RouteEntry entry : this.entries)
+				// Timeout entries
+				//System.out.println("Going to clean up RouteTable, current time : " + System.currentTimeMillis());
+				synchronized (this.entries)
 					{
-					if((System.currentTimeMillis() - entry.getTimeUpdated()) > TIMEOUT && entry.getGatewayAddress() != 0)
+					for (RouteEntry entry : this.entries)
 						{
-						this.entries.remove(entry);
+						if(((System.currentTimeMillis() - entry.getTimeUpdated()) > TIMEOUT) && entry.getGatewayAddress() != 0)
+							{
+							this.entries.remove(entry);
+							}
 						}
 					}
 				}
+			catch(Exception e)
+				{
+				System.out.println("Random exception in timeout");
+				}
+
 			// this.initializeRouteTable(this.ifaces);
 			}
 		}
