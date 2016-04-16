@@ -20,14 +20,13 @@ public class RouteEntry
 	private int maskAddress;
 
 	/**
-	 * Router interface out which packets should be sent to reach the
-	 * destination or gateway
+	 * Router interface out which packets should be sent to reach the destination or gateway
 	 */
 	private Iface iface;
 
 	/** Time (in milliseconds since the epoch) the entry was updated */
 	private long timeUpdated;
-	
+
 	private int metric;
 
 	/**
@@ -40,8 +39,7 @@ public class RouteEntry
 	 * @param maskAddress
 	 *            subnet mask
 	 * @param iface
-	 *            the router interface out which packets should be sent to reach
-	 *            the destination or gateway
+	 *            the router interface out which packets should be sent to reach the destination or gateway
 	 */
 	public RouteEntry(int destinationAddress, int gatewayAddress, int maskAddress, Iface iface)
 		{
@@ -52,7 +50,7 @@ public class RouteEntry
 		this.metric = 1;
 		this.timeUpdated = System.currentTimeMillis();
 		}
-	
+
 	public RouteEntry(int destinationAddress, int gatewayAddress, int maskAddress, Iface iface, int metric)
 		{
 		this.destinationAddress = destinationAddress;
@@ -94,22 +92,21 @@ public class RouteEntry
 
 	public long getTimeUpdated()
 		{
-		return this.timeUpdated ; 
+		return this.timeUpdated;
 		}
-	
+
 	public int getMetric()
-	{
+		{
 		return this.metric;
-	}
-	
+		}
+
 	public void setMetric(int metric)
-	{
+		{
 		this.metric = metric;
-	}
-	
+		}
+
 	/**
-	 * @return the router interface out which packets should be sent to reach
-	 *         the destination or gateway
+	 * @return the router interface out which packets should be sent to reach the destination or gateway
 	 */
 	public Iface getInterface()
 		{
@@ -123,12 +120,13 @@ public class RouteEntry
 
 	public void setTimeUpdated(long timeUpdated)
 		{
-		this.timeUpdated = timeUpdated; 
+		//System.out.println("UPDATING TIMESTAMP !!!");
+		this.timeUpdated = timeUpdated;
 		}
-	
+
 	public String toString()
 		{
-		return String.format("%s \t%s \t%s \t%s", IPv4.fromIPv4Address(this.destinationAddress), IPv4.fromIPv4Address(this.gatewayAddress), IPv4.fromIPv4Address(this.maskAddress),
-				this.iface.getName());
+		return String.format("%s \t%s \t%s \t%s \t%s \t%s", IPv4.fromIPv4Address(this.destinationAddress), IPv4.fromIPv4Address(this.gatewayAddress),
+				IPv4.fromIPv4Address(this.maskAddress), this.iface.getName(), this.metric, this.timeUpdated);
 		}
 	}
