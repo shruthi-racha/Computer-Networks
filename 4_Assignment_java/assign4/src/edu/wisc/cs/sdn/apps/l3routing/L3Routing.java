@@ -1,6 +1,7 @@
 package edu.wisc.cs.sdn.apps.l3routing;
 
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import org.openflow.protocol.OFMatch;
 import org.openflow.protocol.action.OFAction;
@@ -159,7 +160,8 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 	private void updateAllRouting()
 		{
 
-		// TODO Auto-generated method stub
+		System.out.println("\n**************Entering Update all Routing..**********************");
+
 		this.adjMatrix = null;
 		this.adjMatrix = this.createAdjMatrix();
 
@@ -174,33 +176,51 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 			for (Host otherHost : this.getHosts())
 				{
 				// foreach otherhost,
-				if(otherHost != host)
+				System.out.println("Tracing path from host : " + otherHost.getName() + " to " + host.getName());
+				if(otherHost == host)
 					{
-					IOFSwitch currSw = otherHost.getSwitch();
-					if(currSw == null)
-						continue;
+					continue;
+					}
+				IOFSwitch currSw = otherHost.getSwitch();
+				if(currSw == null)
+					{
+					System.out.println("Host " + otherHost.getName() + " not connected to any switch");
+					continue;
+					}
 
-					String currSwId;
-					// for each switch in the path to this host
-					while (currSw != null)
+				String currSwId;
+				// for each switch in the path to this host
+				while (currSw != null)
+					{
+					// install rule on currSw
+					System.out.println("currSw: " + currSw.getStringId());
+					currSwId = currSw.getStringId();
+					if(fwdingToSrcPorts.get(currSwId) == null)
 						{
-						// install rule on currSw
-						int opPortTowardsSrc = fwdingToSrcPorts.get(currSw);
-						installL3FwdRule(currSw, host, opPortTowardsSrc);
-
-						// currSw = predecessor.get(currSw);
-						currSwId = predecessors.get(currSw.getStringId());
-						if(currSwId == null)
-							break;
-						currSw = this.getSwitches().get(Long.parseLong(currSwId));
+						System.out.println("currSw " + currSw.getStringId() + " has no further fwdToSrcPort entry");
+						break;
 						}
+					int opPortTowardsSrc = fwdingToSrcPorts.get(currSwId);
+					installL3FwdRule(currSw, host, opPortTowardsSrc);
+
+					// currSw = predecessor.get(currSw);
+					currSwId = predecessors.get(currSw.getStringId());
+					if(currSwId.equals(host.getName()))
+						{
+						System.out.println("currSw " + currSw.getStringId() + " has no further predecessor, directly connected to host");
+						break;
+						}
+					currSw = this.getSwitches().get(currSw.getId());
 					}
 				}
 			}
+
+		displayAdjMatrix();
 		}
 
 	private void installL3FwdRule(IOFSwitch currSw, Host host, int opPortTowardsSrc)
 		{
+		System.out.println("Install Rule :  sw - " + currSw.getStringId() + " port " + opPortTowardsSrc);
 		OFMatch matchCriteria = new OFMatch();
 		matchCriteria.setDataLayerType(OFMatch.ETH_TYPE_IPV4);
 		matchCriteria.setNetworkDestination(host.getIPv4Address());
@@ -213,34 +233,46 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 		instructionList.add(applyActions);
 
 		SwitchCommands.removeRules(currSw, this.table, matchCriteria);
-		SwitchCommands.installRule(currSw, this.table, SwitchCommands.DEFAULT_PRIORITY, matchCriteria, instructionList);
+		if(SwitchCommands.installRule(currSw, this.table, SwitchCommands.DEFAULT_PRIORITY, matchCriteria, instructionList) == false)
+			{
+			System.out.println("Rule not installed: sw " + currSw.getStringId() + " port: " + opPortTowardsSrc + " table: " + this.table);
+			}
+		else
+			{
+			System.out.println("Rule installed : sw " + currSw.getStringId() + " port: " + opPortTowardsSrc + " table: " + this.table);
+			}
 
 		}
 
 	public void bellmanFord(HashMap<String, HashMap<String, Integer>> adjMatrix, Host src, HashMap<String, String> predecessors, HashMap<String, Integer> fwdingToSrcPorts,
 			HashMap<String, Integer> distances)
 		{
-
+		if(src.getSwitch() == null)
+			return;
 		for (Host host : this.getHosts())
 			{
 			distances.put(host.getName(), this.INFINITY);
-			predecessors.put(host.getName(), host.getSwitch().getStringId());
-			fwdingToSrcPorts.put(host.getName(), host.getPort());
+			if(host.getSwitch() != null)
+				{
+				// predecessors.put(host.getName(), host.getSwitch().getStringId());
+				// fwdingToSrcPorts.put(host.getName(), host.getPort());
+				}
 			}
-		for (long swId : this.getSwitches().keySet())
+		for (IOFSwitch sw : this.getSwitches().values())
 			{
-			String swIdName = String.valueOf(swId);
+			String swIdName = String.valueOf(sw.getStringId());
 			distances.put(swIdName, this.INFINITY);
 			}
 		distances.put(src.getName(), 0);
 		predecessors.put(src.getName(), src.getSwitch().getStringId());
-		fwdingToSrcPorts.put(src.getName(), src.getPort());
+		// fwdingToSrcPorts.put(src.getName(), src.getPort());
 
-		List<String> allDeviceNames = (List<String>) this.adjMatrix.keySet();
-
-		for (int i = 0;i < allDeviceNames.size() - 1;i++)
+		Set<String> allDeviceNames = this.adjMatrix.keySet();
+		System.out.println("BF : adjMetrix keyset size : " + allDeviceNames.size());
+		System.out.println("Num Links : " + this.getLinks().size());
+		for (int i = 0;i < allDeviceNames.size();i++)
 			{
-			// for each u
+			// for each u, v
 			for (String device : allDeviceNames)
 				{
 				for (Map.Entry<String, Integer> adjEntry : adjMatrix.get(device).entrySet())
@@ -253,13 +285,23 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 							distances.put(adjEntry.getKey(), (distances.get(device) + 1));
 							predecessors.put(adjEntry.getKey(), device);
 
-							for (Link link : this.getLinks())
+							// fwding ports need to be populated only if it is a switch
+							// case 1 : this switch's predecessor is the src
+							if(device.equals(src.getName()))
 								{
-								if(String.valueOf(link.getDst()).equals(device))
+								fwdingToSrcPorts.put(adjEntry.getKey(), src.getPort());
+								}
+							// case 2 : this switch's predecessor is another switch
+							else
+								{
+								for (Link link : this.getLinks())
 									{
-									if(String.valueOf(link.getSrc()).equals(adjEntry.getKey()))
+									if(String.valueOf(link.getDst()).equals(device))
 										{
-										fwdingToSrcPorts.put(adjEntry.getKey(), link.getSrcPort());
+										if(String.valueOf(link.getSrc()).equals(adjEntry.getKey()))
+											{
+											fwdingToSrcPorts.put(adjEntry.getKey(), link.getSrcPort());
+											}
 										}
 									}
 								}
@@ -268,7 +310,89 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 					}
 				}
 			}
+		displayBellmanFord(src, predecessors, fwdingToSrcPorts, distances);
+		}
 
+	public void bellmanFordOld(HashMap<String, HashMap<String, Integer>> adjMatrix, Host src, HashMap<String, String> predecessors, HashMap<String, Integer> fwdingToSrcPorts,
+			HashMap<String, Integer> distances)
+		{
+
+		if(src.getSwitch() == null)
+			return;
+		for (Host host : this.getHosts())
+			{
+			distances.put(host.getName(), this.INFINITY);
+			if(host.getSwitch() != null)
+				{
+				predecessors.put(host.getName(), host.getSwitch().getStringId());
+				fwdingToSrcPorts.put(host.getName(), host.getPort());
+				}
+			}
+		for (long swId : this.getSwitches().keySet())
+			{
+			String swIdName = String.valueOf(swId);
+			distances.put(swIdName, this.INFINITY);
+			}
+		distances.put(src.getName(), 0);
+
+		predecessors.put(src.getName(), src.getSwitch().getStringId());
+		fwdingToSrcPorts.put(src.getName(), src.getPort());
+
+		Set<String> allDeviceNames = this.adjMatrix.keySet();
+
+		for (int i = 0;i < allDeviceNames.size() - 1;i++)
+			{
+			// for each u
+			// for (Link link : this.getLinks())
+			// {
+			// System.out.println("Link Src: " + link.getSrc() + "\t" + link.getDst());
+			// if(distances.get(String.valueOf(link.getSrc())) + 1 < distances.get(String.valueOf(link.getDst())))
+			// {
+			// distances.put(String.valueOf(link.getDst()), distances.get(String.valueOf(link.getSrc())) + 1);
+			// predecessors.put(String.valueOf(link.getDst()), String.valueOf(link.getSrc()));
+			// fwdingToSrcPorts.put(String.valueOf(link.getDst()), link.getDstPort());
+			// }
+			// }
+
+			}
+		displayBellmanFord(src, predecessors, fwdingToSrcPorts, distances);
+		}
+
+	private void displayAdjMatrix()
+		{
+		System.out.println("\nADJ MATRIX : ");
+		for (Entry<String, HashMap<String, Integer>> row : this.adjMatrix.entrySet())
+			{
+			System.out.print(row.getKey() + " : ");
+			for (Entry<String, Integer> col : row.getValue().entrySet())
+				{
+				System.out.print("(" + col.getKey() + "," + col.getValue() + ") ");
+				}
+			System.out.println();
+			}
+		}
+
+	private void displayBellmanFord(Host src, HashMap<String, String> predecessors, HashMap<String, Integer> fwdingToSrcPorts, HashMap<String, Integer> distances)
+		{
+		System.out.println("\nBELLMAN FORD : src : " + src.getName() + " " + src.getIPv4Address());
+		System.out.print("Predecessors : ");
+		for (Entry<String, String> predMapEntry : predecessors.entrySet())
+			{
+			System.out.print("(" + predMapEntry.getKey() + "," + predMapEntry.getValue() + ") ");
+			}
+		System.out.println();
+		System.out.print("FwdPorts : ");
+		for (Entry<String, Integer> mapEntry : fwdingToSrcPorts.entrySet())
+			{
+			System.out.print("(" + mapEntry.getKey() + "," + mapEntry.getValue() + ") ");
+			}
+		System.out.println();
+		System.out.print("Distances : ");
+		for (Entry<String, Integer> mapEntry : distances.entrySet())
+			{
+			System.out.print("(" + mapEntry.getKey() + "," + mapEntry.getValue() + ") ");
+			}
+		System.out.println();
 		}
 
 	public HashMap<String, HashMap<String, Integer>> createAdjMatrix()
@@ -281,9 +405,9 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 			{
 			allDeviceNames.add(host.getName());
 			}
-		for (long swId : this.getSwitches().keySet())
+		for (IOFSwitch sw : this.getSwitches().values())
 			{
-			allDeviceNames.add(String.valueOf(swId));
+			allDeviceNames.add(sw.getStringId());
 			}
 
 		// use list of both switch names and host names to create table
@@ -306,7 +430,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 			{
 			if(host.getSwitch() != null)
 				{
-				String switchName = String.valueOf(host.getSwitch().getId());
+				String switchName = host.getSwitch().getStringId();
 				Map<String, Integer> internalMap;
 
 				internalMap = adjMatrix.get(host.getName());
@@ -319,6 +443,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 
 		for (Link link : this.getLinks())
 			{
+			System.out.println("Link src: " + link.getSrc() + " dest: " + link.getDst());
 			String switchId1 = String.valueOf(link.getSrc());
 			String switchId2 = String.valueOf(link.getDst());
 			adjMatrix.get(switchId1).put(switchId2, 1);
@@ -421,7 +546,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 
 		/*********************************************************************/
 		/* TODO: Update routing: change routing rules for all hosts */
-		//check
+		// check
 		for (Host host : this.getHosts())
 			{
 			OFMatch matchCriteria = new OFMatch();
