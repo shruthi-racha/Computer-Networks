@@ -26,6 +26,7 @@ import net.floodlightcontroller.devicemanager.IDeviceListener;
 import net.floodlightcontroller.devicemanager.IDeviceService;
 import net.floodlightcontroller.linkdiscovery.ILinkDiscoveryListener;
 import net.floodlightcontroller.linkdiscovery.ILinkDiscoveryService;
+import net.floodlightcontroller.packet.IPv4;
 import net.floodlightcontroller.routing.Link;
 
 public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDiscoveryListener, IDeviceListener
@@ -49,6 +50,8 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 
 	// shru
 	public int INFINITY = 1000;
+
+	private static int debug_level = 2;
 
 	// Map of hosts to devices
 	private Map<IDevice, Host> knownHosts;
@@ -159,8 +162,8 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 
 	private void updateAllRouting()
 		{
-
-		System.out.println("\n**************Entering Update all Routing..**********************");
+		if(debug_level < 2)
+			System.out.println("\n**************Entering Update all Routing..**********************");
 
 		this.adjMatrix = null;
 		this.adjMatrix = this.createAdjMatrix();
@@ -176,7 +179,8 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 			for (Host otherHost : this.getHosts())
 				{
 				// foreach otherhost,
-				System.out.println("Tracing path from host : " + otherHost.getName() + " to " + host.getName());
+				if(debug_level < 2)
+					System.out.println("Tracing path from host : " + otherHost.getName() + " to " + host.getName());
 				if(otherHost == host)
 					{
 					continue;
@@ -184,7 +188,8 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 				IOFSwitch currSw = otherHost.getSwitch();
 				if(currSw == null)
 					{
-					System.out.println("Host " + otherHost.getName() + " not connected to any switch");
+					if(debug_level < 2)
+						System.out.println("Host " + otherHost.getName() + " not connected to any switch");
 					continue;
 					}
 
@@ -193,34 +198,43 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 				while (currSw != null)
 					{
 					// install rule on currSw
-					System.out.println("currSw: " + currSw.getStringId());
-					currSwId = currSw.getStringId();
+					if(debug_level < 1)
+						System.out.println("currSw: " + String.valueOf(currSw.getId()));
+					currSwId = String.valueOf(currSw.getId());
 					if(fwdingToSrcPorts.get(currSwId) == null)
 						{
-						System.out.println("currSw " + currSw.getStringId() + " has no further fwdToSrcPort entry");
+						if(debug_level < 1)
+							System.out.println("currSw " + String.valueOf(currSw.getId()) + " has no further fwdToSrcPort entry");
 						break;
 						}
 					int opPortTowardsSrc = fwdingToSrcPorts.get(currSwId);
 					installL3FwdRule(currSw, host, opPortTowardsSrc);
 
 					// currSw = predecessor.get(currSw);
-					currSwId = predecessors.get(currSw.getStringId());
+					currSwId = predecessors.get(String.valueOf(currSw.getId()));
 					if(currSwId.equals(host.getName()))
 						{
-						System.out.println("currSw " + currSw.getStringId() + " has no further predecessor, directly connected to host");
+						if(debug_level < 1)
+							System.out.println("currSw " + String.valueOf(currSw.getId()) + " has no further predecessor, directly connected to host");
 						break;
 						}
-					currSw = this.getSwitches().get(currSw.getId());
+					currSw = this.getSwitches().get(Long.parseLong(currSwId));
+					if(currSw == null)
+						{
+						if(debug_level < 1)
+							System.out.println("end of path since updated currSw for" + currSwId + " is null");
+						}
 					}
 				}
 			}
-
-		displayAdjMatrix();
+		if(debug_level < 2)
+			displayAdjMatrix();
 		}
 
 	private void installL3FwdRule(IOFSwitch currSw, Host host, int opPortTowardsSrc)
 		{
-		System.out.println("Install Rule :  sw - " + currSw.getStringId() + " port " + opPortTowardsSrc);
+		if(debug_level < 2)
+			System.out.println("L3 Install Rule :  sw - " + String.valueOf(currSw.getId()) + " port " + opPortTowardsSrc);
 		OFMatch matchCriteria = new OFMatch();
 		matchCriteria.setDataLayerType(OFMatch.ETH_TYPE_IPV4);
 		matchCriteria.setNetworkDestination(host.getIPv4Address());
@@ -235,11 +249,12 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 		SwitchCommands.removeRules(currSw, this.table, matchCriteria);
 		if(SwitchCommands.installRule(currSw, this.table, SwitchCommands.DEFAULT_PRIORITY, matchCriteria, instructionList) == false)
 			{
-			System.out.println("Rule not installed: sw " + currSw.getStringId() + " port: " + opPortTowardsSrc + " table: " + this.table);
+			System.out.println("L3 Rule not installed: sw " + String.valueOf(currSw.getId()) + " port: " + opPortTowardsSrc + " table: " + this.table);
 			}
 		else
 			{
-			System.out.println("Rule installed : sw " + currSw.getStringId() + " port: " + opPortTowardsSrc + " table: " + this.table);
+			if(debug_level < 2)
+				System.out.println("L3 Rule installed : sw " + String.valueOf(currSw.getId()) + " port: " + opPortTowardsSrc + " table: " + this.table);
 			}
 
 		}
@@ -260,16 +275,19 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 			}
 		for (IOFSwitch sw : this.getSwitches().values())
 			{
-			String swIdName = String.valueOf(sw.getStringId());
+			String swIdName = String.valueOf(sw.getId());
 			distances.put(swIdName, this.INFINITY);
 			}
 		distances.put(src.getName(), 0);
-		predecessors.put(src.getName(), src.getSwitch().getStringId());
+		predecessors.put(src.getName(), String.valueOf(src.getSwitch().getId()));
 		// fwdingToSrcPorts.put(src.getName(), src.getPort());
 
 		Set<String> allDeviceNames = this.adjMatrix.keySet();
-		System.out.println("BF : adjMetrix keyset size : " + allDeviceNames.size());
-		System.out.println("Num Links : " + this.getLinks().size());
+		if(debug_level < 1)
+			{
+			System.out.println("BF : adjMetrix keyset size : " + allDeviceNames.size());
+			System.out.println("Num Links : " + this.getLinks().size());
+			}
 		for (int i = 0;i < allDeviceNames.size();i++)
 			{
 			// for each u, v
@@ -310,7 +328,8 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 					}
 				}
 			}
-		displayBellmanFord(src, predecessors, fwdingToSrcPorts, distances);
+		if(debug_level < 2)
+			displayBellmanFord(src, predecessors, fwdingToSrcPorts, distances);
 		}
 
 	public void bellmanFordOld(HashMap<String, HashMap<String, Integer>> adjMatrix, Host src, HashMap<String, String> predecessors, HashMap<String, Integer> fwdingToSrcPorts,
@@ -324,7 +343,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 			distances.put(host.getName(), this.INFINITY);
 			if(host.getSwitch() != null)
 				{
-				predecessors.put(host.getName(), host.getSwitch().getStringId());
+				predecessors.put(host.getName(), String.valueOf(host.getSwitch().getId()));
 				fwdingToSrcPorts.put(host.getName(), host.getPort());
 				}
 			}
@@ -335,7 +354,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 			}
 		distances.put(src.getName(), 0);
 
-		predecessors.put(src.getName(), src.getSwitch().getStringId());
+		predecessors.put(src.getName(), String.valueOf(src.getSwitch().getId()));
 		fwdingToSrcPorts.put(src.getName(), src.getPort());
 
 		Set<String> allDeviceNames = this.adjMatrix.keySet();
@@ -355,44 +374,60 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 			// }
 
 			}
-		displayBellmanFord(src, predecessors, fwdingToSrcPorts, distances);
+		if(debug_level < 2)
+			displayBellmanFord(src, predecessors, fwdingToSrcPorts, distances);
 		}
 
 	private void displayAdjMatrix()
 		{
-		System.out.println("\nADJ MATRIX : ");
-		for (Entry<String, HashMap<String, Integer>> row : this.adjMatrix.entrySet())
+		try
 			{
-			System.out.print(row.getKey() + " : ");
-			for (Entry<String, Integer> col : row.getValue().entrySet())
+			System.out.println("\nADJ MATRIX : ");
+			for (Entry<String, HashMap<String, Integer>> row : this.adjMatrix.entrySet())
 				{
-				System.out.print("(" + col.getKey() + "," + col.getValue() + ") ");
+				System.out.print(row.getKey() + " : ");
+				for (Entry<String, Integer> col : row.getValue().entrySet())
+					{
+					System.out.print("(" + col.getKey() + "," + col.getValue() + ") ");
+					}
+				System.out.println();
 				}
-			System.out.println();
+			}
+		catch(Exception e)
+			{
+			e.printStackTrace();
 			}
 		}
 
 	private void displayBellmanFord(Host src, HashMap<String, String> predecessors, HashMap<String, Integer> fwdingToSrcPorts, HashMap<String, Integer> distances)
 		{
-		System.out.println("\nBELLMAN FORD : src : " + src.getName() + " " + src.getIPv4Address());
-		System.out.print("Predecessors : ");
-		for (Entry<String, String> predMapEntry : predecessors.entrySet())
+		try
 			{
-			System.out.print("(" + predMapEntry.getKey() + "," + predMapEntry.getValue() + ") ");
+			System.out.println("\nBELLMAN FORD : src : " + src.getName() + " " + IPv4.fromIPv4Address(src.getIPv4Address()));
+			System.out.print("Predecessors : ");
+			for (Entry<String, String> predMapEntry : predecessors.entrySet())
+				{
+				System.out.print("(" + predMapEntry.getKey() + "," + predMapEntry.getValue() + ") ");
+				}
+			System.out.println();
+			System.out.print("FwdPorts : ");
+			for (Entry<String, Integer> mapEntry : fwdingToSrcPorts.entrySet())
+				{
+				System.out.print("(" + mapEntry.getKey() + "," + mapEntry.getValue() + ") ");
+				}
+			System.out.println();
+			System.out.print("Distances : ");
+			for (Entry<String, Integer> mapEntry : distances.entrySet())
+				{
+				System.out.print("(" + mapEntry.getKey() + "," + mapEntry.getValue() + ") ");
+				}
+			System.out.println();
 			}
-		System.out.println();
-		System.out.print("FwdPorts : ");
-		for (Entry<String, Integer> mapEntry : fwdingToSrcPorts.entrySet())
+		catch(Exception e)
 			{
-			System.out.print("(" + mapEntry.getKey() + "," + mapEntry.getValue() + ") ");
+			e.printStackTrace();
 			}
-		System.out.println();
-		System.out.print("Distances : ");
-		for (Entry<String, Integer> mapEntry : distances.entrySet())
-			{
-			System.out.print("(" + mapEntry.getKey() + "," + mapEntry.getValue() + ") ");
-			}
-		System.out.println();
+
 		}
 
 	public HashMap<String, HashMap<String, Integer>> createAdjMatrix()
@@ -407,7 +442,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 			}
 		for (IOFSwitch sw : this.getSwitches().values())
 			{
-			allDeviceNames.add(sw.getStringId());
+			allDeviceNames.add(String.valueOf(sw.getId()));
 			}
 
 		// use list of both switch names and host names to create table
@@ -430,7 +465,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 			{
 			if(host.getSwitch() != null)
 				{
-				String switchName = host.getSwitch().getStringId();
+				String switchName = String.valueOf(host.getSwitch().getId());
 				Map<String, Integer> internalMap;
 
 				internalMap = adjMatrix.get(host.getName());
@@ -443,11 +478,22 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener, ILinkDis
 
 		for (Link link : this.getLinks())
 			{
-			System.out.println("Link src: " + link.getSrc() + " dest: " + link.getDst());
+			if(debug_level < 2)
+				System.out.println("Link src: " + link.getSrc() + " dest: " + link.getDst());
 			String switchId1 = String.valueOf(link.getSrc());
 			String switchId2 = String.valueOf(link.getDst());
-			adjMatrix.get(switchId1).put(switchId2, 1);
-			adjMatrix.get(switchId2).put(switchId1, 1);
+			if(adjMatrix.get(switchId1)!=null)
+				{
+				adjMatrix.get(switchId1).put(switchId2, 1);
+				}
+			else
+				{
+				System.out.println("Looks like s"+switchId1+" is no longer up");
+				}
+			if(adjMatrix.get(switchId2)!=null)
+				adjMatrix.get(switchId2).put(switchId1, 1);
+			else
+				System.out.println("Looks like s"+switchId2+" is no longer up");
 			}
 		return adjMatrix;
 		}
